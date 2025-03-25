@@ -135,9 +135,9 @@ export const createProduct = async (
   }
 ) => {
   const [frontLabelData, nutritionLabelData, ingredientsData] = await Promise.all([
-    processFrontLabel(images.frontLabel),
-    images.nutritionLabel ? processNutritionLabelV2(images.nutritionLabel) : Promise.resolve(undefined),
-    images.ingredients ? processIngredientsLabel(images.ingredients) : Promise.resolve(undefined),
+    processFrontLabel(images.frontLabel.buffer),
+    images.nutritionLabel ? processNutritionLabelV2(images.nutritionLabel.buffer) : Promise.resolve(undefined),
+    images.ingredients ? processIngredientsLabel(images.ingredients.buffer) : Promise.resolve(undefined),
   ]);
 
   // Save product to database

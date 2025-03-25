@@ -33,6 +33,12 @@ export const authMiddleware = async (
       req.email = decodedToken.email;
       req.emailVerified = decodedToken.email_verified;
 
+      // TODO: Fetch admin from db
+      if (decodedToken.uid === "dRblard7VFZIcVTD870NIQ07L633") {
+        req.userID = 0;
+        return;
+      }
+
       if (!req.email || !req.emailVerified) {
         res.status(403).json({
           status: "error",

@@ -9,6 +9,7 @@ import { toArray, toStrOrNull, toValidStringArrayOrNull } from "./type";
 import { uploadImage } from "./image";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { db } from "../db";
+import { eq } from "drizzle-orm";
 
 export const createNewProduct = async (
   newProduct: NewFoodProductFormData,
@@ -25,6 +26,7 @@ export const createNewProduct = async (
         ingredients: newProduct.ingredients,
         additives: toArray(newProduct.additives),
         allergens: toArray(newProduct.allergens),
+        verified: newProduct.verified === "on",
       })
       .returning({ id: foodProductsTable.id });
     await createNewProductNutrition(id[0].id, newProduct, db);
@@ -93,6 +95,48 @@ export const uploadProductImages = async (
     })
   );
 };
+
+export const editProductData = async (
+  newId: number,
+  newProduct: NewFoodProductFormData,
+  tx: NodePgDatabase = db
+) => {
+  await tx.update(foodProductsTable)
+    .set({
+      name: newProduct.name,
+      brand: newProduct.brand,
+      foodCategoryId: parseInt(newProduct.category),
+      barcode: toArray(newProduct.barcode),
+      ingredients: newProduct.ingredients,
+      additives: toArray(newProduct.additives),
+      allergens: toArray(newProduct.allergens),
+      verified: newProduct.verified === "on",
+    })
+    .where(eq(foodProductsTable.id, newId));
+  
+  await tx.update(nutritionInfoTable)
+    .set({
+      servingSize: toStrOrNull(newProduct.servingSize),
+      servingSizeUnit: newProduct.servingSizeUnit,
+      servingSizePerUnit: toStrOrNull(newProduct.servingSizePerUnit),
+      calories: toStrOrNull(newProduct.calories),
+      fat: toStrOrNull(newProduct.fat),
+      carbs: toStrOrNull(newProduct.carbs),
+      protein: toStrOrNull(newProduct.protein),
+      sugar: toStrOrNull(newProduct.sugar),
+      monounsaturatedFat: toStrOrNull(newProduct.monounsaturatedFat),
+      polyunsaturatedFat: toStrOrNull(newProduct.polyunsaturatedFat),
+      saturatedFat: toStrOrNull(newProduct.saturatedFat),
+      transFat: toStrOrNull(newProduct.transFat),
+      cholesterol: toStrOrNull(newProduct.cholesterol),
+      sodium: toStrOrNull(newProduct.sodium),
+      fiber: toStrOrNull(newProduct.fiber),
+      vitamins: toValidStringArrayOrNull(newProduct.vitamins),
+      minerals: toValidStringArrayOrNull(newProduct.minerals),
+      uncategorized: toValidStringArrayOrNull(newProduct.uncategorized),
+    })
+    .where(eq(nutritionInfoTable.foodProductId, newId));
+}
 
 /**
  * @deprecated

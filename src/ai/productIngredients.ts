@@ -3,12 +3,12 @@ import { ingredientsSchema } from "./schema";
 import { generateData } from "../utils/ai";
 
 export const processIngredientsLabel = async (
-  ingredientsLabel: Express.Multer.File,
+  ingredientsLabelBuffer: Buffer<ArrayBufferLike>,
   model: string = "gemini-2.0-flash-lite"
 ) => {
   const ingredientsLabelData = await generateData<FoodIngredientDetails>(
     model,
-    ingredientsLabel,
+    ingredientsLabelBuffer,
     "List the ingredients, additives and allergens based on the JSON structure",
     ingredientsSchema
   );

@@ -14,7 +14,7 @@ export function bufferToGenerativePart(buffer: Buffer): Part {
 
 export const generateData = async <T>(
   model: string,
-  file: Express.Multer.File,
+  buffer: Buffer<ArrayBufferLike>,
   prompt: string,
   schema: Schema
 ): Promise<T> => {
@@ -27,13 +27,16 @@ export const generateData = async <T>(
   });
 
   const result = await modelInstance.generateContent([
-    bufferToGenerativePart(file.buffer),
+    bufferToGenerativePart(buffer),
     prompt,
   ]);
 
   logger.info({
     message: "Tokens used",
-    totalTokenCount: result.response.usageMetadata?.totalTokenCount ?? 0,
+    usage: {
+      inputToken: result.response.usageMetadata?.promptTokenCount,
+      outputToken: result.response.usageMetadata?.candidatesTokenCount,
+    },
     model: model,
     prompt: prompt,
   });

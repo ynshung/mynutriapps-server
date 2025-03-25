@@ -9,6 +9,7 @@ import {
 import { bufferToGenerativePart, genAI, generateData } from "../utils/ai";
 import { logger } from "../utils/logger";
 import { uploadImage } from "../utils/image";
+import sharp from "sharp";
 
 /**
  * @deprecated
@@ -52,9 +53,16 @@ export const processNutritionLabel = async (
 };
 
 export const processNutritionLabelV2 = async (
-  nutritionLabel: Express.Multer.File,
+  nutritionLabelBuffer: Buffer<ArrayBufferLike>,
   model: string = "gemini-2.0-flash"
 ) => {
+  const resizedBuffer = await sharp(nutritionLabelBuffer)
+    .resize(512, 512, {
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .toBuffer();
+
   // TODO: Context caching
   // https://ai.google.dev/gemini-api/docs/caching?lang=node
   const nutritionLabelInfoData = await generateData<{
@@ -63,7 +71,7 @@ export const processNutritionLabelV2 = async (
     per100gAvailable: boolean;
   }>(
     "gemini-2.0-flash-lite",
-    nutritionLabel,
+    resizedBuffer,
     "Check the availability of the nutritional table.",
     nutritionInfoAvailableSchema
   );
@@ -103,19 +111,19 @@ export const processNutritionLabelV2 = async (
   const [nutritionServingsData, nutritionLabelData, nutritionLabelCategory] = await Promise.all([
     generateData<NutritionInfoServings>(
       "gemini-2.0-flash-lite",
-      nutritionLabel,
+      nutritionLabelBuffer,
       `Determine the servings size, its unit and the total servings based on the image.`,
       nutritionInfoServingsSchema
     ),
     generateData<NutritionInfoDetails>(
       model,
-      nutritionLabel,
+      nutritionLabelBuffer,
       `List the nutrition information ${extractInstruction}. Leave blank if not provided in the table. If the unit stated is not the same in the picture such as kJ instead of kcal in energy, convert it accordingly.`,
       nutritionInfoDetailsSchema
     ),
     generateData<NutritionInfoCategory>(
       "gemini-2.0-flash-lite",
-      nutritionLabel,
+      nutritionLabelBuffer,
       `List the vitamins, minerals and other uncategorized nutrition information based on the image, ignoring ${nutritionDetailsKeys.join(", ")}.`,
       nutritionInfoCategorySchema
     ),

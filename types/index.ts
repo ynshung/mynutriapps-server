@@ -32,4 +32,5 @@ export interface NewFoodProductFormData
     NutritionInfoCategory,
     FoodIngredientDetails {
       barcode: string[] | string;
+      verified: string;
     }

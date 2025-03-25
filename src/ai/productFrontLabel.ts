@@ -3,12 +3,12 @@ import { getFoodProductSchema } from "./schema";
 import { generateData } from "../utils/ai";
 
 export const processFrontLabel = async (
-  frontLabel: Express.Multer.File,
+  frontLabelBuffer: Buffer<ArrayBufferLike>,
   model: string = "gemini-2.0-flash-lite"
 ) => {
   const frontLabelData = await generateData<FoodProduct>(
     model,
-    frontLabel,
+    frontLabelBuffer,
     "Extract the product name, brand and category based on the JSON structure",
     await getFoodProductSchema()
   );

@@ -24,7 +24,12 @@ import {
 } from "@/types/prompt";
 import cors from "cors";
 import { NewFoodProductFormData } from "@/types";
-import { createNewProduct, uploadProductImages } from "../utils/product";
+import {
+  createNewProduct,
+  editProductData,
+  uploadProductImages,
+} from "../utils/product";
+import { fetchImageAsBuffer, fetchImageAsMulter } from "../utils/fetchImage";
 
 const router = Router();
 
@@ -169,15 +174,11 @@ router.post(
       return;
     }
 
-    const result = await createProduct(
-      barcode,
-      userID,
-      {
-        frontLabel,
-        nutritionLabel,
-        ingredients,
-      },
-    );
+    const result = await createProduct(barcode, userID, {
+      frontLabel,
+      nutritionLabel,
+      ingredients,
+    });
     res.status(201).json(result);
   }
 );
@@ -223,27 +224,37 @@ router.post(
     const nutritionLabel = files["nutrition_label"]?.[0];
     const ingredients = files["ingredients"]?.[0];
 
+    const frontLabelUrl = req.body.front_label_url;
+    const nutritionLabelUrl = req.body.nutrition_label_url;
+    const ingredientsUrl = req.body.ingredients_url;
+
     const tasks: Promise<InferenceResult>[] = [];
 
-    if (frontLabel) {
+    if (frontLabel || (frontLabelUrl && frontLabelUrl.startsWith("http"))) {
       tasks.push(
-        inferenceHandlers.front_label(frontLabel).then((frontLabelData) => ({
-          frontLabelData,
-        }))
+        inferenceHandlers
+          .front_label(frontLabel ? frontLabel.buffer : await fetchImageAsBuffer(frontLabelUrl))
+          .then((frontLabelData) => ({
+            frontLabelData,
+          }))
       );
     }
-    if (nutritionLabel) {
+    if (nutritionLabel || (nutritionLabelUrl && nutritionLabelUrl.startsWith("http"))) {
       tasks.push(
-        inferenceHandlers.nutrition_label(nutritionLabel).then((nutritionLabelData) => ({
-          nutritionLabelData,
-        }))
+        inferenceHandlers
+          .nutrition_label(nutritionLabel ? nutritionLabel.buffer : await fetchImageAsBuffer(nutritionLabelUrl))
+          .then((nutritionLabelData) => ({
+            nutritionLabelData,
+          }))
       );
     }
-    if (ingredients) {
+    if (ingredients || (ingredientsUrl && ingredientsUrl.startsWith("http"))) {
       tasks.push(
-        inferenceHandlers.ingredients(ingredients).then((ingredientsLabelData) => ({
-          ingredientsLabelData,
-        }))
+        inferenceHandlers
+          .ingredients(ingredients ? ingredients.buffer : await fetchImageAsBuffer(ingredientsUrl))
+          .then((ingredientsLabelData) => ({
+            ingredientsLabelData,
+          }))
       );
     }
 
@@ -319,11 +330,15 @@ router.post(
     const newProductID = await createNewProduct(nutritionInfo);
 
     if (images && Object.keys(images).length > 0) {
-      await uploadProductImages(newProductID, {
-        frontLabelImage: images.front_label?.[0],
-        nutritionLabelImage: images.nutrition_label?.[0],
-        ingredientsImage: images.ingredients?.[0],
-      }, 0);
+      await uploadProductImages(
+        newProductID,
+        {
+          frontLabelImage: images.front_label?.[0],
+          nutritionLabelImage: images.nutrition_label?.[0],
+          ingredientsImage: images.ingredients?.[0],
+        },
+        0
+      );
     }
 
     res.status(201).json({
@@ -331,6 +346,77 @@ router.post(
       data: {
         foodProductId: newProductID,
       },
+    });
+  }
+);
+
+// TODO; Fetch from URL (for batch processing)
+router.post("/api/v1/admin/product/create-from-url", async (req, res) => {
+  console.log(req.body);
+  const { frontLabel, nutritionLabel, ingredients, barcode } = req.body;
+
+  if (!barcode) {
+    res.status(400).json({
+      status: "error",
+      message: "Barcode is required",
+    });
+    return;
+  }
+
+  const [frontLabelFile, nutritionLabelFile, ingredientsFile] =
+    await Promise.all([
+      fetchImageAsMulter(frontLabel),
+      fetchImageAsMulter(nutritionLabel),
+      fetchImageAsMulter(ingredients),
+    ]);
+
+  if (frontLabelFile === undefined) {
+    res.status(400).json({
+      status: "error",
+      message: "Front label image is required",
+    });
+    return;
+  }
+
+  const result = await createProduct(barcode, 0, {
+    frontLabel: frontLabelFile,
+    nutritionLabel: nutritionLabelFile,
+    ingredients: ingredientsFile,
+  });
+  res.status(201).json(result);
+});
+
+router.post(
+  "/api/v1/admin/product/edit/:productID",
+  upload.fields([
+    { name: "front_label", maxCount: 1 },
+    { name: "nutrition_label", maxCount: 1 },
+    { name: "ingredients", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    const images = req.files as
+      | { [fieldname: string]: Express.Multer.File[] }
+      | undefined;
+
+    const productID = parseInt(req.params.productID);
+    const nutritionInfo = req.body as NewFoodProductFormData;
+
+    await editProductData(productID, nutritionInfo);
+
+    if (images && Object.keys(images).length > 0) {
+      await uploadProductImages(
+        productID,
+        {
+          frontLabelImage: images.front_label?.[0],
+          nutritionLabelImage: images.nutrition_label?.[0],
+          ingredientsImage: images.ingredients?.[0],
+        },
+        0
+      );
+    }
+
+    res.status(200).json({
+      status: "success",
     });
   }
 );

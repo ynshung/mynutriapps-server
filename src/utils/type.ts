@@ -1,5 +1,11 @@
 export const toArray = <T>(value: T | T[] | undefined): T[] => {
-  return value === undefined ? [] : Array.isArray(value) ? value : [value];
+  if (value === undefined) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value.filter((item) => item !== "");
+  }
+  return value === "" ? [] : [value];
 }
 
 export const toValidStringArrayOrNull = (value: string | string[] | undefined): string[] | null => {
