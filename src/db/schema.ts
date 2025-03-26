@@ -41,6 +41,7 @@ export const usersTable = pgTable("users", {
   email: text().notNull().unique(),
   firebaseUUID: text().notNull().unique(),
   createdAt: timestamp().notNull().defaultNow(),
+  updatedAt: timestamp().notNull().defaultNow(),
   profilePicture: uuid().references((): AnyPgColumn => imagesTable.id, {
     onDelete: "set null",
     onUpdate: "cascade",
@@ -89,6 +90,8 @@ export const foodProductsTable = pgTable("food_products", {
   verified: boolean().default(false),
 
   foodCategoryId: integer().references(() => foodCategoryTable.id),
+  createdAt: timestamp().notNull().defaultNow(),
+  updatedAt: timestamp().notNull().defaultNow(),
 });
 
 export const nutritionInfoTable = pgTable("nutrition_info", {

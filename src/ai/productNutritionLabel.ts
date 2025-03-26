@@ -11,50 +11,9 @@ import { logger } from "../utils/logger";
 import { uploadImage } from "../utils/image";
 import sharp from "sharp";
 
-/**
- * @deprecated
- */
-export const processNutritionLabel = async (
-  nutritionLabel: Express.Multer.File,
-  userID?: number,
-  model: string = "gemini-1.5-flash"
-) => {
-  let imageID = "";
-  if (userID !== undefined) {
-    imageID = await uploadImage(nutritionLabel, userID);
-  }
-  const nutritionLabelModel = genAI.getGenerativeModel({
-    model: model,
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: nutritionInfoSchema,
-      temperature: 0.1,
-    },
-  });
-
-  const nutritionLabelResult = await nutritionLabelModel.generateContent([
-    bufferToGenerativePart(nutritionLabel.buffer),
-    "List the nutrition information based on the JSON structure, if the properties are not provided, leave as blank. If the predefined unit is not the same, convert it (50mg carbs to 0.05g carbs, 1.2g sodium to 1200mg sodium).",
-  ]);
-
-  console.log(nutritionLabelResult.response.text());
-
-  const nutritionLabelData: NutritionInfo = JSON.parse(
-    nutritionLabelResult.response.text()
-  );
-
-  logger.info({
-    message: "Nutrition label processed",
-    img_id: imageID,
-    nutrition_label_data: nutritionLabelData,
-  });
-
-  return { imageID, nutritionLabelData };
-};
-
 export const processNutritionLabelV2 = async (
   nutritionLabelBuffer: Buffer<ArrayBufferLike>,
-  model: string = "gemini-2.0-flash"
+  model: string = "gemini-1.5-flash"
 ) => {
   const resizedBuffer = await sharp(nutritionLabelBuffer)
     .resize(512, 512, {
@@ -150,4 +109,45 @@ export const processNutritionLabelV2 = async (
   };
 
   return finalNutritionLabelData;
+};
+
+/**
+ * @deprecated
+ */
+export const processNutritionLabel = async (
+  nutritionLabel: Express.Multer.File,
+  userID?: number,
+  model: string = "gemini-1.5-flash"
+) => {
+  let imageID = "";
+  if (userID !== undefined) {
+    ({ imageID } = await uploadImage(nutritionLabel, userID));
+  }
+  const nutritionLabelModel = genAI.getGenerativeModel({
+    model: model,
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: nutritionInfoSchema,
+      temperature: 0.1,
+    },
+  });
+
+  const nutritionLabelResult = await nutritionLabelModel.generateContent([
+    bufferToGenerativePart(nutritionLabel.buffer),
+    "List the nutrition information based on the JSON structure, if the properties are not provided, leave as blank. If the predefined unit is not the same, convert it (50mg carbs to 0.05g carbs, 1.2g sodium to 1200mg sodium).",
+  ]);
+
+  console.log(nutritionLabelResult.response.text());
+
+  const nutritionLabelData: NutritionInfo = JSON.parse(
+    nutritionLabelResult.response.text()
+  );
+
+  logger.info({
+    message: "Nutrition label processed",
+    img_id: imageID,
+    nutrition_label_data: nutritionLabelData,
+  });
+
+  return { imageID, nutritionLabelData };
 };

@@ -11,7 +11,7 @@ import { upload } from "../middleware/upload";
 import "express-async-errors";
 import { authMiddleware } from "../middleware/auth";
 import { db } from "../db";
-import { usersTable } from "../db/schema";
+import { imagesTable, usersTable } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { adminMiddleware } from "../middleware/admin";
 import { processFrontLabel } from "../ai/productFrontLabel";
@@ -29,7 +29,13 @@ import {
   editProductData,
   uploadProductImages,
 } from "../utils/product";
-import { fetchImageAsBuffer, fetchImageAsMulter } from "../utils/fetchImage";
+import {
+  bufferToMulter,
+  fetchImageAsBuffer,
+  fetchImageAsMulter,
+} from "../utils/fetchImage";
+import { uploadImage } from "../utils/image";
+import sharp from "sharp";
 
 const router = Router();
 
@@ -52,17 +58,19 @@ router.get("/api/v1/user/profile", async (req, res) => {
     const user = await db
       .select()
       .from(usersTable)
-      .where(eq(usersTable.id, req.userID));
+      .where(eq(usersTable.id, req.userID))
+      .innerJoin(imagesTable, eq(usersTable.profilePicture, imagesTable.id));
     res.status(200).json({
       status: "success",
       data: user[0],
     });
   } else {
-    res.status(200).json({
+    res.status(404).json({
       status: "no_profile",
     });
   }
 });
+
 router.post("/api/v1/user/onboarding", async (req, res) => {
   const { firebaseUUID, email, emailVerified, body } = req;
   if (!email || !emailVerified) {
@@ -97,6 +105,84 @@ router.post("/api/v1/user/onboarding", async (req, res) => {
     data: {
       userID: user[0].id,
     },
+  });
+});
+
+router.post(
+  "/api/v1/user/profile-picture",
+  upload.single("file"),
+  async (req, res) => {
+    const { file } = req;
+    if (!req.userID) {
+      res.status(403).json({
+        status: "error",
+        message: "Invalid account",
+      });
+      return;
+    }
+    if (!file) {
+      res.status(400).json({
+        status: "error",
+        message: "Image is required",
+      });
+      return;
+    }
+
+    const resizedImage = await sharp(file.buffer)
+      .resize(400, 400)
+      .jpeg({ quality: 50 })
+      .toBuffer();
+
+    const profilePicture = await uploadImage(
+      bufferToMulter(resizedImage, file.originalname, file.mimetype),
+      req.userID,
+      false
+    );
+
+    await db
+      .update(usersTable)
+      .set({ profilePicture: profilePicture.imageID, updatedAt: new Date() })
+      .where(eq(usersTable.id, req.userID));
+
+    res.status(200).json({
+      status: "success",
+      message: "Image uploaded successfully",
+      data: {
+        key: profilePicture.imageKey,
+        id: profilePicture.imageID,
+      },
+    });
+  }
+);
+
+router.post("/api/v1/user/edit-profile", async (req, res) => {
+  const { userID, email, emailVerified, body } = req;
+  if (!email || !emailVerified || !userID) {
+    res.status(403).json({
+      status: "error",
+      message: "Invalid account",
+    });
+    return;
+  }
+
+  await db
+    .update(usersTable)
+    .set({
+      name: body.name,
+      dateOfBirth: body.dateOfBirth,
+      gender: body.gender,
+      height: body.height,
+      weight: body.weight,
+      activityLevel: body.activityLevel,
+      goal: body.goal,
+      allergies: body.allergies,
+      medicalConditions: body.medicalConditions,
+      updatedAt: new Date(),
+    })
+    .where(eq(usersTable.id, userID));
+
+  res.status(200).json({
+    status: "success",
   });
 });
 
@@ -233,16 +319,27 @@ router.post(
     if (frontLabel || (frontLabelUrl && frontLabelUrl.startsWith("http"))) {
       tasks.push(
         inferenceHandlers
-          .front_label(frontLabel ? frontLabel.buffer : await fetchImageAsBuffer(frontLabelUrl))
+          .front_label(
+            frontLabel
+              ? frontLabel.buffer
+              : await fetchImageAsBuffer(frontLabelUrl)
+          )
           .then((frontLabelData) => ({
             frontLabelData,
           }))
       );
     }
-    if (nutritionLabel || (nutritionLabelUrl && nutritionLabelUrl.startsWith("http"))) {
+    if (
+      nutritionLabel ||
+      (nutritionLabelUrl && nutritionLabelUrl.startsWith("http"))
+    ) {
       tasks.push(
         inferenceHandlers
-          .nutrition_label(nutritionLabel ? nutritionLabel.buffer : await fetchImageAsBuffer(nutritionLabelUrl))
+          .nutrition_label(
+            nutritionLabel
+              ? nutritionLabel.buffer
+              : await fetchImageAsBuffer(nutritionLabelUrl)
+          )
           .then((nutritionLabelData) => ({
             nutritionLabelData,
           }))
@@ -251,7 +348,11 @@ router.post(
     if (ingredients || (ingredientsUrl && ingredientsUrl.startsWith("http"))) {
       tasks.push(
         inferenceHandlers
-          .ingredients(ingredients ? ingredients.buffer : await fetchImageAsBuffer(ingredientsUrl))
+          .ingredients(
+            ingredients
+              ? ingredients.buffer
+              : await fetchImageAsBuffer(ingredientsUrl)
+          )
           .then((ingredientsLabelData) => ({
             ingredientsLabelData,
           }))
@@ -352,7 +453,6 @@ router.post(
 
 // TODO; Fetch from URL (for batch processing)
 router.post("/api/v1/admin/product/create-from-url", async (req, res) => {
-  console.log(req.body);
   const { frontLabel, nutritionLabel, ingredients, barcode } = req.body;
 
   if (!barcode) {
