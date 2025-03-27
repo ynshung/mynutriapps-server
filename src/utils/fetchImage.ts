@@ -6,7 +6,7 @@ export const fetchImageAsMulter = async (
   const response = await fetch(url);
   const buffer = Buffer.from(await response.arrayBuffer());
   const contentType = response.headers.get("content-type") || "image/jpeg";
-  const fileName = url.split("data/").pop()?.replace(/\//g, "-") || "image.jpg";
+  const fileName = url.split("data/").pop()?.replace(/\//g, "") || "image.jpg";
 
   return bufferToMulter(buffer, fileName, contentType);
 };

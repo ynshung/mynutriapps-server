@@ -1,10 +1,13 @@
-import 'dotenv/config';
-import { drizzle } from 'drizzle-orm/node-postgres';
+import "dotenv/config";
+import { drizzle } from "drizzle-orm/node-postgres";
 // import { eq } from 'drizzle-orm';
 // import { usersTable } from './schema';
-  
-const databaseUrl = process.env.NODE_ENV === 'test' ? process.env.TEST_DATABASE_URL : process.env.PROD_DATABASE_URL;
-export const db = drizzle(databaseUrl!);
+
+const databaseUrl =
+  process.env.NODE_ENV === "test"
+    ? process.env.TEST_DATABASE_URL
+    : process.env.PROD_DATABASE_URL;
+export const db = drizzle(databaseUrl!, { logger: true });
 
 // async function main() {
 //   const user: typeof usersTable.$inferInsert = {

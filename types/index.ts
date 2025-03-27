@@ -15,6 +15,7 @@ export type ImageFoodProductDB =
   typeof schema.imageFoodProductsTable.$inferSelect;
 export type UserDB = typeof schema.usersTable.$inferSelect;
 
+// For full product data
 export type ServerFoodProduct = {
   food_products: FoodProductDB;
   food_category: FoodCategoryDB;
@@ -32,5 +33,15 @@ export interface NewFoodProductFormData
     NutritionInfoCategory,
     FoodIngredientDetails {
       barcode: string[] | string;
-      verified: string;
+      verified: string
     }
+
+// For product card
+export type ProductCardType = {
+  id: number;
+  name: string | null;
+  brand: string | null;
+  category: string;
+  verified: boolean | null;
+  image: string | null;
+};

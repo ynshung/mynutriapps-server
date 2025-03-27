@@ -35,7 +35,7 @@ export const uploadImage = async (
   prependDate: boolean = true
 ) => {
   const imageKey = prependDate
-    ? `public/${userID}/${Date.now()}-${image.originalname}`
+    ? `public/${userID}/${Date.now() - Math.floor(Math.random() * 1000 - 500)}-${image.originalname}`
     : `public/${userID}/${image.originalname}`;
 
   try {

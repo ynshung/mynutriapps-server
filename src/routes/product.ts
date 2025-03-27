@@ -1,31 +1,36 @@
 import { Request, Response } from "express";
 import { db } from "@src/db";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   foodProductsTable,
-  nutritionInfoTable,
   imageFoodProductsTable,
   imagesTable,
   foodCategoryTable,
   userProductClicksTable,
 } from "@src/db/schema";
-import { ServerFoodProduct, ServerFoodProductDetails } from "@/types";
+import { ProductCardType } from "@/types";
 import { logger } from "@src/utils/logger";
 import { processFrontLabel } from "../ai/productFrontLabel";
-import {
-  processNutritionLabelV2,
-} from "../ai/productNutritionLabel";
+import { processNutritionLabelV2 } from "../ai/productNutritionLabel";
 import { processIngredientsLabel } from "../ai/productIngredients";
-import { createNewProductNutrition, uploadProductImages } from "../utils/product";
+import {
+  createNewProductNutrition,
+  getProductData,
+  uploadProductImages,
+} from "../utils/product";
 
 export const listProducts = async (req: Request, res: Response) => {
   const data = await db
-    .select()
+    .selectDistinctOn([foodProductsTable.id], {
+      id: foodProductsTable.id,
+      name: foodProductsTable.name,
+      barcode: foodProductsTable.barcode,
+      brand: foodProductsTable.brand,
+      category: foodCategoryTable.name,
+      image: imagesTable.imageKey,
+      verified: foodProductsTable.verified,
+    })
     .from(foodProductsTable)
-    .innerJoin(
-      nutritionInfoTable,
-      eq(foodProductsTable.id, nutritionInfoTable.foodProductId)
-    )
     .innerJoin(
       imageFoodProductsTable,
       eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
@@ -34,82 +39,68 @@ export const listProducts = async (req: Request, res: Response) => {
     .innerJoin(
       foodCategoryTable,
       eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
-    );
+    )
+    .where(eq(imageFoodProductsTable.type, "front"))
+    .orderBy(desc(foodProductsTable.id));
 
-  const reducedData = data.reduce<Record<number, ServerFoodProduct>>(
-    (acc, curr) => {
-      const foodProductId = curr.food_products.id;
-      if (!acc[foodProductId]) {
-        acc[foodProductId] = {
-          food_products: curr.food_products,
-          food_category: curr.food_category,
-          images: [
-            { ...curr.images, type: curr.image_food_products.type ?? "other" },
-          ],
-        };
-      } else {
-        acc[foodProductId].images.push({
-          ...curr.images,
-          type: curr.image_food_products.type ?? "other",
-        });
-      }
-      return acc;
-    },
-    {}
-  );
+  res.json(data);
+};
 
-  res.json(reducedData);
+export const listRecentlyViewedProducts = async (
+  id: number
+): Promise<ProductCardType[]> => {
+  const subquery = db
+    .selectDistinctOn([userProductClicksTable.foodProductId])
+    .from(userProductClicksTable)
+    .where(eq(userProductClicksTable.userID, id))
+    .orderBy(
+      desc(userProductClicksTable.foodProductId),
+      desc(userProductClicksTable.clickedAt)
+    )
+    .as("user");
+
+  const products = await db
+    .select({
+      id: foodProductsTable.id,
+      name: foodProductsTable.name,
+      brand: foodProductsTable.brand,
+      category: foodCategoryTable.name,
+      image: imagesTable.imageKey,
+      verified: foodProductsTable.verified,
+    })
+    .from(subquery)
+    .orderBy(desc(subquery.clickedAt))
+    .innerJoin(
+      foodProductsTable,
+      eq(subquery.foodProductId, foodProductsTable.id)
+    )
+    .innerJoin(
+      foodCategoryTable,
+      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
+    )
+    .innerJoin(
+      imageFoodProductsTable,
+      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
+    )
+    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
+    .where(eq(imageFoodProductsTable.type, "front"))
+    .limit(8);
+
+  return products;
 };
 
 export const getProduct = async (req: Request, res: Response) => {
-  // TODO: Abstract this into a function since scanning barcode will be another endpoint
   const id = parseInt(req.params.id);
-  const userId = req.query.user_id
-    ? parseInt(req.query.user_id as string)
-    : null;
-  const data = await db
-    .select()
-    .from(foodProductsTable)
-    .where(eq(foodProductsTable.id, id))
-    .innerJoin(
-      nutritionInfoTable,
-      eq(foodProductsTable.id, nutritionInfoTable.foodProductId)
-    )
-    .innerJoin(
-      imageFoodProductsTable,
-      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
-    )
-    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
-    .innerJoin(
-      foodCategoryTable,
-      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
-    );
+  const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
 
-  const foodProduct = data[0];
-  // Check if product exists
-  if (!foodProduct) {
+  // Process images
+  const foodProductDetails = await getProductData(id);
+  if (!foodProductDetails) {
     res.status(404).json({
       status: "error",
       message: "Product not found",
     });
     return;
-  }
-
-  // Process images
-  const foodProductDetails: ServerFoodProductDetails = {
-    ...foodProduct,
-    images: [],
-  };
-  for (const obj of data) {
-    const existingImage = foodProductDetails.images.find(
-      (img) => img.id === obj.images.id
-    );
-    if (!existingImage) {
-      foodProductDetails.images.push({
-        ...obj.images,
-        type: obj.image_food_products.type ?? "other",
-      });
-    }
   }
 
   res.json(foodProductDetails);
@@ -134,11 +125,16 @@ export const createProduct = async (
     ingredients?: Express.Multer.File;
   }
 ) => {
-  const [frontLabelData, nutritionLabelData, ingredientsData] = await Promise.all([
-    processFrontLabel(images.frontLabel.buffer),
-    images.nutritionLabel ? processNutritionLabelV2(images.nutritionLabel.buffer) : Promise.resolve(undefined),
-    images.ingredients ? processIngredientsLabel(images.ingredients.buffer) : Promise.resolve(undefined),
-  ]);
+  const [frontLabelData, nutritionLabelData, ingredientsData] =
+    await Promise.all([
+      processFrontLabel(images.frontLabel.buffer),
+      images.nutritionLabel
+        ? processNutritionLabelV2(images.nutritionLabel.buffer)
+        : Promise.resolve(undefined),
+      images.ingredients
+        ? processIngredientsLabel(images.ingredients.buffer)
+        : Promise.resolve(undefined),
+    ]);
 
   // Save product to database
   return await db.transaction(async (tx) => {
@@ -186,11 +182,16 @@ export const createProduct = async (
       }
 
       // (4) Images
-      await uploadProductImages(productId, {
-        frontLabelImage: images.frontLabel,
-        nutritionLabelImage: images.nutritionLabel,
-        ingredientsImage: images.ingredients,
-      }, userID, tx);
+      await uploadProductImages(
+        productId,
+        {
+          frontLabelImage: images.frontLabel,
+          nutritionLabelImage: images.nutritionLabel,
+          ingredientsImage: images.ingredients,
+        },
+        userID,
+        tx
+      );
 
       return {
         status: "success",

@@ -1,15 +1,96 @@
-import { NutritionDetails, NutritionInfo, NutritionInfoFull } from "@/types/prompt";
 import {
+  NutritionDetails,
+  NutritionInfo,
+  NutritionInfoFull,
+} from "@/types/prompt";
+import {
+  foodCategoryTable,
   foodProductsTable,
   imageFoodProductsTable,
+  imagesTable,
   nutritionInfoTable,
 } from "../db/schema";
-import { NewFoodProductFormData } from "@/types";
+import { NewFoodProductFormData, ServerFoodProductDetails } from "@/types";
 import { toArray, toStrOrNull, toValidStringArrayOrNull } from "./type";
 import { uploadImage } from "./image";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { db } from "../db";
 import { eq } from "drizzle-orm";
+
+export const getProductData = async (id: number) => {
+  const data = await db
+    .select()
+    .from(foodProductsTable)
+    .where(eq(foodProductsTable.id, id))
+    .innerJoin(
+      nutritionInfoTable,
+      eq(foodProductsTable.id, nutritionInfoTable.foodProductId)
+    )
+    .innerJoin(
+      imageFoodProductsTable,
+      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
+    )
+    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
+    .innerJoin(
+      foodCategoryTable,
+      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
+    );
+
+  const foodProduct = data[0];
+  // Check if product exists
+  if (!foodProduct) {
+    return null;
+  }
+
+  // Process images
+  const foodProductDetails: ServerFoodProductDetails = {
+    ...foodProduct,
+    images: [],
+  };
+  for (const obj of data) {
+    const existingImage = foodProductDetails.images.find(
+      (img) => img.id === obj.images.id
+    );
+    if (!existingImage) {
+      foodProductDetails.images.push({
+        ...obj.images,
+        type: obj.image_food_products.type ?? "other",
+      });
+    }
+  }
+  return foodProductDetails;
+};
+
+export const getProductImages = async (id: number) => {
+  const data = await db
+    .select({
+      key: imagesTable.imageKey,
+      type: imageFoodProductsTable.type,
+    })
+    .from(imageFoodProductsTable)
+    .where(eq(imageFoodProductsTable.foodProductId, id))
+    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id));
+
+  return data.reduce<Record<string, string>>((acc, curr) => {
+    acc[curr.type] = curr.key;
+    return acc;
+  }, {});
+};
+
+export const getFullProducts = async (
+  products: { id: number; [key: string]: unknown }[]
+) => {
+  // TODO: Might need further optimization as each product is fetched individually
+  // Maybe use JSON agg?
+  return await Promise.all(
+    products.map(async (product) => {
+      return {
+        ...product,
+        images: await getProductImages(product.id),
+      };
+    })
+  );
+};
 
 export const createNewProduct = async (
   newProduct: NewFoodProductFormData,
@@ -61,7 +142,7 @@ export const createNewProductNutrition = async (
     minerals: toValidStringArrayOrNull(newProduct.minerals),
     uncategorized: toValidStringArrayOrNull(newProduct.uncategorized),
   });
-}
+};
 
 export const uploadProductImages = async (
   productId: number,
@@ -101,7 +182,8 @@ export const editProductData = async (
   newProduct: NewFoodProductFormData,
   tx: NodePgDatabase = db
 ) => {
-  await tx.update(foodProductsTable)
+  await tx
+    .update(foodProductsTable)
     .set({
       name: newProduct.name,
       brand: newProduct.brand,
@@ -113,8 +195,9 @@ export const editProductData = async (
       verified: newProduct.verified === "on",
     })
     .where(eq(foodProductsTable.id, newId));
-  
-  await tx.update(nutritionInfoTable)
+
+  await tx
+    .update(nutritionInfoTable)
     .set({
       servingSize: toStrOrNull(newProduct.servingSize),
       servingSizeUnit: newProduct.servingSizeUnit,
@@ -136,7 +219,7 @@ export const editProductData = async (
       uncategorized: toValidStringArrayOrNull(newProduct.uncategorized),
     })
     .where(eq(nutritionInfoTable.foodProductId, newId));
-}
+};
 
 /**
  * @deprecated

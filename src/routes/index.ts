@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { listProducts, createProduct, getProduct } from "./product";
+import { listProducts, createProduct, getProduct, listRecentlyViewedProducts } from "./product";
 import {
   addCategory,
   deleteCategory,
@@ -215,8 +215,22 @@ router.delete("/api/v1/category/:id", async (req, res) => {
 // Food Products
 router.get("/api/v1/list", listProducts);
 router.get("/api/v1/product/:id", getProduct);
-// router.get("/api/v1/product/:id/ingredients", getProductIngredients);
+router.get("/api/v1/recently-viewed", authMiddleware, async (req, res) => {
+  const { userID } = req;
 
+  if (!userID) {
+    res.status(403).json({
+      status: "error",
+      message: "Invalid account",
+    });
+    return;
+  }
+
+  const recentlyViewedProducts = await listRecentlyViewedProducts(userID);
+  res.status(200).json(recentlyViewedProducts);
+});
+
+// TODO: auth middleware
 router.post(
   "/api/v1/product/create",
   upload.fields([
