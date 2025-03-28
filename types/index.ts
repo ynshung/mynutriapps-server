@@ -24,6 +24,7 @@ export type ServerFoodProduct = {
 
 export type ServerFoodProductDetails = ServerFoodProduct & {
   nutrition_info: NutritionInfoDB;
+  isUserFavorite: boolean;
 };
 
 export interface NewFoodProductFormData
@@ -44,4 +45,5 @@ export type ProductCardType = {
   category: string;
   verified: boolean | null;
   image: string | null;
+  favorite?: boolean;
 };

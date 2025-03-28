@@ -122,6 +122,8 @@ export const nutritionInfoTable = pgTable("nutrition_info", {
   uncategorized: text().array(),
 });
 
+// TODO - inconsistent naming of Id and ID
+
 export const imageFoodProductsTable = pgTable(
   "image_food_products",
   {

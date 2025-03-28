@@ -1,12 +1,13 @@
 import { Request, Response } from "express";
 import { db } from "@src/db";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import {
   foodProductsTable,
   imageFoodProductsTable,
   imagesTable,
   foodCategoryTable,
   userProductClicksTable,
+  userProductFavoritesTable,
 } from "@src/db/schema";
 import { ProductCardType } from "@/types";
 import { logger } from "@src/utils/logger";
@@ -20,13 +21,17 @@ import {
 } from "../utils/product";
 
 export const listProducts = async (req: Request, res: Response) => {
-  const data = await db
+  const { userID } = req;
+
+  let data: ProductCardType[];
+
+  const subquery = db
     .selectDistinctOn([foodProductsTable.id], {
       id: foodProductsTable.id,
-      name: foodProductsTable.name,
+      name: sql<string>`${foodProductsTable.name}`.as("product_name"),
       barcode: foodProductsTable.barcode,
       brand: foodProductsTable.brand,
-      category: foodCategoryTable.name,
+      category: sql<string>`${foodCategoryTable.name}`.as("category_name"),
       image: imagesTable.imageKey,
       verified: foodProductsTable.verified,
     })
@@ -41,9 +46,70 @@ export const listProducts = async (req: Request, res: Response) => {
       eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
     )
     .where(eq(imageFoodProductsTable.type, "front"))
-    .orderBy(desc(foodProductsTable.id));
+    .orderBy(desc(foodProductsTable.id), desc(foodProductsTable.createdAt))
+    .as("subquery");
+
+  if (userID) {
+    data = await db
+      .select({
+        id: subquery.id,
+        name: subquery.name,
+        barcode: subquery.barcode,
+        brand: subquery.brand,
+        category: subquery.category,
+        image: subquery.image,
+        verified: subquery.verified,
+        favorite: sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`,
+      })
+      .from(subquery)
+      .leftJoin(
+        userProductFavoritesTable,
+        and(
+          eq(userProductFavoritesTable.foodProductId, subquery.id),
+          eq(userProductFavoritesTable.userID, userID)
+        )
+      ).orderBy(desc(subquery.id));
+  } else {
+    data = await db.select().from(subquery);
+  }
 
   res.json(data);
+};
+
+export const listFavoriteProducts = async (userID: number) => {
+  const favorites = await db
+    .select({
+      id: foodProductsTable.id,
+      name: foodProductsTable.name,
+      barcode: foodProductsTable.barcode,
+      brand: foodProductsTable.brand,
+      category: foodCategoryTable.name,
+      image: imagesTable.imageKey,
+      verified: foodProductsTable.verified,
+    })
+    .from(userProductFavoritesTable)
+    .where(
+      and(
+        eq(userProductFavoritesTable.userID, userID),
+        eq(imageFoodProductsTable.type, "front")
+      )
+    )
+    .innerJoin(
+      foodProductsTable,
+      eq(userProductFavoritesTable.foodProductId, foodProductsTable.id)
+    )
+    .innerJoin(
+      foodCategoryTable,
+      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
+    )
+    .innerJoin(
+      imageFoodProductsTable,
+      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
+    )
+    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
+    .orderBy(desc(userProductFavoritesTable.favoritedAt));
+
+  return favorites;
 };
 
 export const listRecentlyViewedProducts = async (
@@ -94,7 +160,7 @@ export const getProduct = async (req: Request, res: Response) => {
   const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
 
   // Process images
-  const foodProductDetails = await getProductData(id);
+  const foodProductDetails = await getProductData(id, userId);
   if (!foodProductDetails) {
     res.status(404).json({
       status: "error",

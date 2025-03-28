@@ -1,5 +1,11 @@
 import { Router } from "express";
-import { listProducts, createProduct, getProduct, listRecentlyViewedProducts } from "./product";
+import {
+  listProducts,
+  createProduct,
+  getProduct,
+  listRecentlyViewedProducts,
+  listFavoriteProducts,
+} from "./product";
 import {
   addCategory,
   deleteCategory,
@@ -9,10 +15,14 @@ import {
 import { Request, Response, NextFunction } from "express";
 import { upload } from "../middleware/upload";
 import "express-async-errors";
-import { authMiddleware } from "../middleware/auth";
+import { authMiddleware, optionalAuthMiddleware } from "../middleware/auth";
 import { db } from "../db";
-import { imagesTable, usersTable } from "../db/schema";
-import { eq } from "drizzle-orm";
+import {
+  imagesTable,
+  userProductFavoritesTable,
+  usersTable,
+} from "../db/schema";
+import { and, eq } from "drizzle-orm";
 import { adminMiddleware } from "../middleware/admin";
 import { processFrontLabel } from "../ai/productFrontLabel";
 import { processNutritionLabelV2 } from "../ai/productNutritionLabel";
@@ -213,8 +223,131 @@ router.delete("/api/v1/category/:id", async (req, res) => {
 });
 
 // Food Products
-router.get("/api/v1/list", listProducts);
-router.get("/api/v1/product/:id", getProduct);
+router.get("/api/v1/list", optionalAuthMiddleware, listProducts);
+router.get("/api/v1/product/:id", optionalAuthMiddleware, getProduct);
+router.get("/api/v1/favorite", authMiddleware, async (req, res) => {
+  const { userID } = req;
+
+  if (!userID) {
+    res.status(403).json({
+      status: "error",
+      message: "Invalid account",
+    });
+    return;
+  }
+
+  try {
+    const favorites = await listFavoriteProducts(userID);
+
+    res.status(200).json({
+      status: "success",
+      data: favorites,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to retrieve favorite products",
+    });
+  }
+});
+
+router.post("/api/v1/favorite", authMiddleware, async (req, res) => {
+  const { userID } = req;
+  const { productID } = req.body;
+
+  if (!userID) {
+    res.status(403).json({
+      status: "error",
+      message: "Invalid account",
+    });
+    return;
+  }
+
+  if (!productID) {
+    res.status(400).json({
+      status: "error",
+      message: "Product ID is required",
+    });
+    return;
+  }
+
+  try {
+    const existingFavorite = await db
+      .select()
+      .from(userProductFavoritesTable)
+      .where(
+        and(
+          eq(userProductFavoritesTable.foodProductId, Number(productID)),
+          eq(userProductFavoritesTable.userID, Number(userID))
+        )
+      );
+
+    if (existingFavorite.length > 0) {
+      res.status(200).json({
+        status: "success",
+        message: "Product is already in favorites",
+      });
+      return;
+    }
+
+    await db.insert(userProductFavoritesTable).values({
+      foodProductId: Number(productID),
+      userID: Number(userID),
+    });
+    res.status(201).json({
+      status: "success",
+      message: "Product added to favorites",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to add product to favorites",
+    });
+  }
+});
+router.delete("/api/v1/favorite", authMiddleware, async (req, res) => {
+  const { userID } = req;
+  const { productID } = req.body;
+
+  if (!userID) {
+    res.status(403).json({
+      status: "error",
+      message: "Invalid account",
+    });
+    return;
+  }
+
+  if (!productID) {
+    res.status(400).json({
+      status: "error",
+      message: "Product ID is required",
+    });
+    return;
+  }
+
+  try {
+    await db
+      .delete(userProductFavoritesTable)
+      .where(
+        and(
+          eq(userProductFavoritesTable.foodProductId, Number(productID)),
+          eq(userProductFavoritesTable.userID, Number(userID))
+        )
+      );
+    res.status(200).json({
+      status: "success",
+      message: "Product removed from favorites",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to remove product from favorites",
+    });
+  }
+});
 router.get("/api/v1/recently-viewed", authMiddleware, async (req, res) => {
   const { userID } = req;
 

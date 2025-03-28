@@ -55,7 +55,7 @@ export const authMiddleware = async (
           .select({ id: usersTable.id })
           .from(usersTable)
           .where(eq(usersTable.firebaseUUID, decodedToken.uid));
-  
+
         if (user.length >= 1) {
           req.userID = user[0].id;
           userIDMap[decodedToken.uid] = user[0].id;
@@ -70,4 +70,51 @@ export const authMiddleware = async (
   } else {
     res.status(401).send("Unauthorized");
   }
+};
+
+export const optionalAuthMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const bearerToken = req.headers.authorization?.split("Bearer ")[1];
+
+  if (bearerToken) {
+    try {
+      const decodedToken = await auth.verifyIdToken(bearerToken);
+
+      // Attach uid to the request object
+      req.firebaseUUID = decodedToken.uid;
+      req.email = decodedToken.email;
+      req.emailVerified = decodedToken.email_verified;
+
+      // TODO: Fetch admin from db
+      if (decodedToken.uid === "dRblard7VFZIcVTD870NIQ07L633") {
+        req.userID = 0;
+        return next();
+      }
+
+      if (req.email && req.emailVerified) {
+        // Check if the user exists in the database
+        if (userIDMap[decodedToken.uid]) {
+          req.userID = userIDMap[decodedToken.uid];
+        } else {
+          const user = await db
+            .select({ id: usersTable.id })
+            .from(usersTable)
+            .where(eq(usersTable.firebaseUUID, decodedToken.uid));
+
+          if (user.length >= 1) {
+            req.userID = user[0].id;
+            userIDMap[decodedToken.uid] = user[0].id;
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Optional auth middleware error:", error);
+      // Do not block the request, just proceed without attaching user info
+    }
+  }
+
+  next();
 };

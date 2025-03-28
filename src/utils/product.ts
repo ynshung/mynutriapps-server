@@ -9,15 +9,16 @@ import {
   imageFoodProductsTable,
   imagesTable,
   nutritionInfoTable,
+  userProductFavoritesTable,
 } from "../db/schema";
 import { NewFoodProductFormData, ServerFoodProductDetails } from "@/types";
 import { toArray, toStrOrNull, toValidStringArrayOrNull } from "./type";
 import { uploadImage } from "./image";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { db } from "../db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-export const getProductData = async (id: number) => {
+export const getProductData = async (id: number, userId: number | null) => {
   const data = await db
     .select()
     .from(foodProductsTable)
@@ -42,10 +43,25 @@ export const getProductData = async (id: number) => {
     return null;
   }
 
+  let isUserFavorite = false;
+  if (userId) {
+    const favoriteQuery = await db
+      .select()
+      .from(userProductFavoritesTable)
+      .where(
+        and(
+          eq(userProductFavoritesTable.userID, userId),
+          eq(userProductFavoritesTable.foodProductId, id)
+        )
+      );
+    isUserFavorite = favoriteQuery.length > 0;
+  }
+
   // Process images
   const foodProductDetails: ServerFoodProductDetails = {
     ...foodProduct,
     images: [],
+    isUserFavorite,
   };
   for (const obj of data) {
     const existingImage = foodProductDetails.images.find(
