@@ -28,7 +28,7 @@ export const listProducts = async (req: Request, res: Response) => {
   let data: ProductCardType[];
 
   const subquery = db
-    .selectDistinctOn([foodProductsTable.id], {
+    .select({
       id: foodProductsTable.id,
       name: sql<string>`${foodProductsTable.name}`.as("product_name"),
       barcode: foodProductsTable.barcode,
@@ -36,6 +36,7 @@ export const listProducts = async (req: Request, res: Response) => {
       category: sql<string>`${foodCategoryTable.name}`.as("category_name"),
       image: imagesTable.imageKey,
       verified: foodProductsTable.verified,
+      createdAt: foodProductsTable.createdAt,
     })
     .from(foodProductsTable)
     .innerJoin(
@@ -48,7 +49,7 @@ export const listProducts = async (req: Request, res: Response) => {
       eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
     )
     .where(eq(imageFoodProductsTable.type, "front"))
-    .orderBy(desc(foodProductsTable.id), desc(foodProductsTable.createdAt))
+    .orderBy(desc(foodProductsTable.createdAt))
     .limit(Number(limit))
     .offset((Number(page) - 1) * Number(limit))
     .as("subquery");
@@ -63,6 +64,7 @@ export const listProducts = async (req: Request, res: Response) => {
         category: subquery.category,
         image: subquery.image,
         verified: subquery.verified,
+        createdAt: subquery.createdAt,
         favorite: sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`,
       })
       .from(subquery)
@@ -73,7 +75,7 @@ export const listProducts = async (req: Request, res: Response) => {
           eq(userProductFavoritesTable.userID, userID)
         )
       )
-      .orderBy(desc(subquery.id));
+      .orderBy(desc(subquery.createdAt));
   } else {
     data = await db.select().from(subquery);
   }
@@ -96,6 +98,7 @@ export const searchBarcode = async (req: Request, res: Response) => {
       category: sql<string>`${foodCategoryTable.name}`.as("category_name"),
       image: imagesTable.imageKey,
       verified: foodProductsTable.verified,
+      createdAt: foodProductsTable.createdAt,
     })
     .from(foodProductsTable)
     .innerJoin(
@@ -126,6 +129,7 @@ export const searchBarcode = async (req: Request, res: Response) => {
         category: subquery.category,
         image: subquery.image,
         verified: subquery.verified,
+        createdAt: subquery.createdAt,
         favorite: sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`,
       })
       .from(subquery)
@@ -141,6 +145,10 @@ export const searchBarcode = async (req: Request, res: Response) => {
   } else {
     const query = await db.select().from(subquery);
     data = query[0];
+  }
+  
+  if (!data) {
+    res.status(404).json({ message: "No product found" });
   }
 
   res.json(data);
@@ -213,6 +221,7 @@ export const listRecentlyViewedProducts = async (
       category: foodCategoryTable.name,
       image: imagesTable.imageKey,
       verified: foodProductsTable.verified,
+      createdAt: foodProductsTable.createdAt,
     })
     .from(subquery)
     .orderBy(desc(subquery.clickedAt))

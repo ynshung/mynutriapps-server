@@ -77,6 +77,7 @@ export const foodCategoryTable = pgTable("food_category", {
   alias: text().array(),
 });
 
+// TODO: Setup indexes
 export const foodProductsTable = pgTable("food_products", {
   id: serial().primaryKey(),
   name: text(),

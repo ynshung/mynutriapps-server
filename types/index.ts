@@ -24,7 +24,7 @@ export type ServerFoodProduct = {
 };
 
 export type ServerFoodProductDetails = ServerFoodProduct & {
-  nutrition_info: NutritionInfoDB;
+  nutrition_info: NutritionInfoDB | null;
   isUserFavorite: boolean;
 };
 
@@ -47,13 +47,16 @@ export type ProductCardType = {
   verified: boolean | null;
   image: string | null;
   favorite?: boolean;
+  createdAt: Date; // might be missing on some query
 };
 
 // For product card
 // TODO: Show image (might need resizing) and favorite on search results
-export type ProductSearchResult = Omit<ProductCardType, "image" | "favorite">;
-
-export interface ProductSearchResultsWithSuggestion {
-  results: (SearchResult & ProductSearchResult)[];
-  suggestions: Suggestion[];
+export type ProductSearchResult = {
+  id: number;
+  name: string | null;
+  brand: string | null;
 }
+
+export type ProductSearchResultMS = (ProductSearchResult & SearchResult)[];
+export type ProductSuggestions = Suggestion[];

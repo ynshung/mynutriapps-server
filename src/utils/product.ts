@@ -23,7 +23,7 @@ export const getProductData = async (id: number, userId: number | null) => {
     .select()
     .from(foodProductsTable)
     .where(eq(foodProductsTable.id, id))
-    .innerJoin(
+    .leftJoin(
       nutritionInfoTable,
       eq(foodProductsTable.id, nutritionInfoTable.foodProductId)
     )
