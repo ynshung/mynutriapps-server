@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "@src/db";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, arrayOverlaps, desc, eq, sql } from "drizzle-orm";
 import {
   foodProductsTable,
   imageFoodProductsTable,
@@ -19,9 +19,11 @@ import {
   getProductData,
   uploadProductImages,
 } from "../utils/product";
+import { searchProductsMS, searchSuggestionsMS } from "../utils/minisearch";
 
 export const listProducts = async (req: Request, res: Response) => {
   const { userID } = req;
+  const { page = 1, limit = 10 } = req.query;
 
   let data: ProductCardType[];
 
@@ -47,6 +49,8 @@ export const listProducts = async (req: Request, res: Response) => {
     )
     .where(eq(imageFoodProductsTable.type, "front"))
     .orderBy(desc(foodProductsTable.id), desc(foodProductsTable.createdAt))
+    .limit(Number(limit))
+    .offset((Number(page) - 1) * Number(limit))
     .as("subquery");
 
   if (userID) {
@@ -68,12 +72,88 @@ export const listProducts = async (req: Request, res: Response) => {
           eq(userProductFavoritesTable.foodProductId, subquery.id),
           eq(userProductFavoritesTable.userID, userID)
         )
-      ).orderBy(desc(subquery.id));
+      )
+      .orderBy(desc(subquery.id));
   } else {
     data = await db.select().from(subquery);
   }
 
   res.json(data);
+};
+
+export const searchBarcode = async (req: Request, res: Response) => {
+  const barcode = req.query.q as string;
+  const { userID } = req;
+
+  let data: ProductCardType;
+
+  const subquery = db
+    .selectDistinctOn([foodProductsTable.id, foodProductsTable.createdAt], {
+      id: foodProductsTable.id,
+      name: sql<string>`${foodProductsTable.name}`.as("product_name"),
+      barcode: foodProductsTable.barcode,
+      brand: foodProductsTable.brand,
+      category: sql<string>`${foodCategoryTable.name}`.as("category_name"),
+      image: imagesTable.imageKey,
+      verified: foodProductsTable.verified,
+    })
+    .from(foodProductsTable)
+    .innerJoin(
+      imageFoodProductsTable,
+      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
+    )
+    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
+    .innerJoin(
+      foodCategoryTable,
+      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
+    )
+    .where(
+      and(
+        arrayOverlaps(foodProductsTable.barcode, [barcode]),
+        eq(imageFoodProductsTable.type, "front")
+      )
+    )
+    .orderBy(desc(foodProductsTable.createdAt))
+    .as("subquery");
+
+  if (userID) {
+    const query = await db
+      .select({
+        id: subquery.id,
+        name: subquery.name,
+        barcode: subquery.barcode,
+        brand: subquery.brand,
+        category: subquery.category,
+        image: subquery.image,
+        verified: subquery.verified,
+        favorite: sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`,
+      })
+      .from(subquery)
+      .leftJoin(
+        userProductFavoritesTable,
+        and(
+          eq(userProductFavoritesTable.foodProductId, subquery.id),
+          eq(userProductFavoritesTable.userID, userID)
+        )
+      )
+      .orderBy(desc(subquery.id));
+    data = query[0];
+  } else {
+    const query = await db.select().from(subquery);
+    data = query[0];
+  }
+
+  res.json(data);
+};
+
+export const searchProducts = async (req: Request, res: Response) => {
+  const query = req.query.q as string;
+  res.json(await searchProductsMS(query));
+}
+
+export const searchSuggestions = async (req: Request, res: Response) => {
+  const query = req.query.q as string;
+  res.json(await searchSuggestionsMS(query));
 };
 
 export const listFavoriteProducts = async (userID: number) => {
@@ -259,13 +339,11 @@ export const createProduct = async (
         tx
       );
 
+      const foodProductDetails = await getProductData(productId, userID);
+
       return {
         status: "success",
-        data: {
-          product: newProductEntry[0],
-          nutritionInfo: nutritionLabelData,
-          ingredients: ingredientsData,
-        },
+        data: foodProductDetails,
       };
     } catch (error) {
       logger.error(error);

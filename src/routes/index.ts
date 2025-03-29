@@ -5,6 +5,9 @@ import {
   getProduct,
   listRecentlyViewedProducts,
   listFavoriteProducts,
+  searchBarcode,
+  searchProducts,
+  searchSuggestions,
 } from "./product";
 import {
   addCategory,
@@ -24,14 +27,6 @@ import {
 } from "../db/schema";
 import { and, eq } from "drizzle-orm";
 import { adminMiddleware } from "../middleware/admin";
-import { processFrontLabel } from "../ai/productFrontLabel";
-import { processNutritionLabelV2 } from "../ai/productNutritionLabel";
-import { processIngredientsLabel } from "../ai/productIngredients";
-import {
-  FoodIngredientDetails,
-  FoodProduct,
-  NutritionInfoFull,
-} from "@/types/prompt";
 import cors from "cors";
 import { NewFoodProductFormData } from "@/types";
 import {
@@ -39,13 +34,10 @@ import {
   editProductData,
   uploadProductImages,
 } from "../utils/product";
-import {
-  bufferToMulter,
-  fetchImageAsBuffer,
-  fetchImageAsMulter,
-} from "../utils/fetchImage";
+import { bufferToMulter, fetchImageAsMulter } from "../utils/fetchImage";
 import { uploadImage } from "../utils/image";
 import sharp from "sharp";
+import { adminInferenceProduct } from "./admin";
 
 const router = Router();
 
@@ -54,8 +46,6 @@ router.use(cors());
 router.get("/status", (req, res) => {
   res.status(200);
 });
-
-// TODO: Apply authMiddleware to specific routes
 
 // User Profile
 router.use("/api/v1/user", authMiddleware);
@@ -225,6 +215,13 @@ router.delete("/api/v1/category/:id", async (req, res) => {
 // Food Products
 router.get("/api/v1/list", optionalAuthMiddleware, listProducts);
 router.get("/api/v1/product/:id", optionalAuthMiddleware, getProduct);
+
+router.get("/api/v1/search-barcode", optionalAuthMiddleware, searchBarcode);
+
+router.get("/api/v1/search", searchProducts);
+router.get("/api/v1/suggestions", searchSuggestions);
+
+/// Favorites
 router.get("/api/v1/favorite", authMiddleware, async (req, res) => {
   const { userID } = req;
 
@@ -424,18 +421,6 @@ router.get("/api/v1/admin", (req, res) => {
   });
 });
 
-const inferenceHandlers = {
-  front_label: processFrontLabel,
-  nutrition_label: processNutritionLabelV2,
-  ingredients: processIngredientsLabel,
-};
-
-interface InferenceResult {
-  frontLabelData?: FoodProduct;
-  nutritionLabelData?: NutritionInfoFull;
-  ingredientsLabelData?: FoodIngredientDetails;
-}
-
 router.post(
   "/api/v1/admin/product/inference",
   upload.fields([
@@ -461,104 +446,15 @@ router.post(
     const nutritionLabelUrl = req.body.nutrition_label_url;
     const ingredientsUrl = req.body.ingredients_url;
 
-    const tasks: Promise<InferenceResult>[] = [];
-
-    if (frontLabel || (frontLabelUrl && frontLabelUrl.startsWith("http"))) {
-      tasks.push(
-        inferenceHandlers
-          .front_label(
-            frontLabel
-              ? frontLabel.buffer
-              : await fetchImageAsBuffer(frontLabelUrl)
-          )
-          .then((frontLabelData) => ({
-            frontLabelData,
-          }))
-      );
-    }
-    if (
-      nutritionLabel ||
-      (nutritionLabelUrl && nutritionLabelUrl.startsWith("http"))
-    ) {
-      tasks.push(
-        inferenceHandlers
-          .nutrition_label(
-            nutritionLabel
-              ? nutritionLabel.buffer
-              : await fetchImageAsBuffer(nutritionLabelUrl)
-          )
-          .then((nutritionLabelData) => ({
-            nutritionLabelData,
-          }))
-      );
-    }
-    if (ingredients || (ingredientsUrl && ingredientsUrl.startsWith("http"))) {
-      tasks.push(
-        inferenceHandlers
-          .ingredients(
-            ingredients
-              ? ingredients.buffer
-              : await fetchImageAsBuffer(ingredientsUrl)
-          )
-          .then((ingredientsLabelData) => ({
-            ingredientsLabelData,
-          }))
-      );
-    }
-
-    if (tasks.length === 0) {
-      res.status(400).json({
-        status: "error",
-        message: "At least one image is required",
-      });
-      return;
-    }
-
-    try {
-      const results = await Promise.allSettled(tasks);
-
-      const fulfilledResults = results
-        .filter((result) => result.status === "fulfilled")
-        .map(
-          (result) =>
-            (
-              result as PromiseFulfilledResult<
-                InferenceResult & { imageID: string }
-              >
-            ).value
-        );
-
-      const reducedResult = fulfilledResults.reduce(
-        (acc: InferenceResult, result) => {
-          if (result.frontLabelData) {
-            acc.frontLabelData = result.frontLabelData;
-          }
-          if (result.nutritionLabelData) {
-            acc.nutritionLabelData = result.nutritionLabelData;
-          }
-          if (result.ingredientsLabelData) {
-            acc.ingredientsLabelData = result.ingredientsLabelData;
-          }
-          return acc;
-        },
-        {}
-      );
-
-      const hasRejected = results.some(
-        (result) => result.status === "rejected"
-      );
-
-      res.status(201).json({
-        status: hasRejected ? "warning" : "success",
-        data: reducedResult,
-      });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({
-        status: "error",
-        message: "Failed to process images",
-      });
-    }
+    await adminInferenceProduct({
+      frontLabel: frontLabel,
+      nutritionLabel: nutritionLabel,
+      ingredients: ingredients,
+      frontLabelUrl: frontLabelUrl,
+      nutritionLabelUrl: nutritionLabelUrl,
+      ingredientsUrl: ingredientsUrl,
+      res,
+    });
   }
 );
 
@@ -598,7 +494,6 @@ router.post(
   }
 );
 
-// TODO; Fetch from URL (for batch processing)
 router.post("/api/v1/admin/product/create-from-url", async (req, res) => {
   const { frontLabel, nutritionLabel, ingredients, barcode } = req.body;
 

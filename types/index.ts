@@ -1,3 +1,4 @@
+import { SearchResult, Suggestion } from "minisearch";
 import * as schema from "../src/db/schema";
 import {
   FoodIngredientDetails,
@@ -47,3 +48,12 @@ export type ProductCardType = {
   image: string | null;
   favorite?: boolean;
 };
+
+// For product card
+// TODO: Show image (might need resizing) and favorite on search results
+export type ProductSearchResult = Omit<ProductCardType, "image" | "favorite">;
+
+export interface ProductSearchResultsWithSuggestion {
+  results: (SearchResult & ProductSearchResult)[];
+  suggestions: Suggestion[];
+}
