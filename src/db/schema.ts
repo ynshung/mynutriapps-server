@@ -162,6 +162,19 @@ export const userProductClicksTable = pgTable("user_product_clicks", {
   userScan: boolean().default(false),
 });
 
+export const userSearchHistoryTable = pgTable("user_search_history", {
+  userID: integer()
+    .notNull()
+    .references(() => usersTable.id, {
+      onDelete: "cascade",
+      onUpdate: "cascade",
+    }),
+  searchTerm: text().notNull(),
+  totalSearchResults: integer().notNull(),
+  searchResults: text().array(),
+  searchTimestamp: timestamp().notNull().defaultNow(),
+});
+
 export const userProductFavoritesTable = pgTable("user_product_favorites", {
   userID: integer()
     .notNull()

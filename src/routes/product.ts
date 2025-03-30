@@ -8,6 +8,7 @@ import {
   foodCategoryTable,
   userProductClicksTable,
   userProductFavoritesTable,
+  userSearchHistoryTable,
 } from "@src/db/schema";
 import { ProductCardType } from "@/types";
 import { logger } from "@src/utils/logger";
@@ -146,7 +147,7 @@ export const searchBarcode = async (req: Request, res: Response) => {
     const query = await db.select().from(subquery);
     data = query[0];
   }
-  
+
   if (!data) {
     res.status(404).json({ message: "No product found" });
   }
@@ -156,8 +157,16 @@ export const searchBarcode = async (req: Request, res: Response) => {
 
 export const searchProducts = async (req: Request, res: Response) => {
   const query = req.query.q as string;
-  res.json(await searchProductsMS(query));
-}
+  const result = await searchProductsMS(query);
+  res.json(result.slice(0, 100));
+
+  await db.insert(userSearchHistoryTable).values({
+    userID: req.userID ?? -1,
+    searchTerm: query,
+    totalSearchResults: result.length,
+    searchResults: result.map((r) => r.id.toString()),
+  });
+};
 
 export const searchSuggestions = async (req: Request, res: Response) => {
   const query = req.query.q as string;
@@ -246,7 +255,10 @@ export const listRecentlyViewedProducts = async (
 
 export const getProduct = async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
-  const userId = req.query.userId ? parseInt(req.query.userId as string) : undefined;
+  const userId = req.query.userId
+    ? parseInt(req.query.userId as string)
+    : undefined;
+  const isScanned = req.query.scanned === "true";
 
   // Process images
   const foodProductDetails = await getProductData(id, userId);
@@ -266,6 +278,7 @@ export const getProduct = async (req: Request, res: Response) => {
       .values({
         userID: userId,
         foodProductId: id,
+        userScan: isScanned,
       })
       .execute();
   }
@@ -296,7 +309,8 @@ export const createProduct = async (
     try {
       let categoryId: number | undefined;
       // (1) Food Category
-      if (!frontLabelData) throw new Error("Front label data couldn't be processed");
+      if (!frontLabelData)
+        throw new Error("Front label data couldn't be processed");
       const categoryQueryResult = await tx
         .select()
         .from(foodCategoryTable)

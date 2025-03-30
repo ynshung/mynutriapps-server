@@ -218,7 +218,7 @@ router.get("/api/v1/product/:id", optionalAuthMiddleware, getProduct);
 
 router.get("/api/v1/search-barcode", optionalAuthMiddleware, searchBarcode);
 
-router.get("/api/v1/search", searchProducts);
+router.get("/api/v1/search", optionalAuthMiddleware, searchProducts);
 router.get("/api/v1/suggestions", searchSuggestions);
 
 /// Favorites
