@@ -40,6 +40,12 @@ export const processNutritionLabelV2 = async (
   //   nutrition_label_data: nutritionLabelInfoData,
   // });
 
+  if (!nutritionLabelInfoData) {
+    return {
+      extractableTable: false,
+    };
+  }
+
   const extractInstruction = nutritionLabelInfoData.per100gAvailable
     ? "per 100g or ml"
     : nutritionLabelInfoData.perServingAvailable
@@ -87,15 +93,16 @@ export const processNutritionLabelV2 = async (
       nutritionInfoCategorySchema
     ),
   ]);
-
-  if (extractInstruction === "per serving" && nutritionServingsData.servingSize) {
-    for (const key of nutritionDetailsKeys) {
-      const conversionFactor = 100 / nutritionServingsData.servingSize;
-      const value = nutritionLabelData[key as keyof NutritionInfoDetails];
-      if (value !== undefined) {
-        if (typeof value === "number") {
-          (nutritionLabelData[key as keyof NutritionInfoDetails] as number) =
-            value * conversionFactor;
+  if (nutritionServingsData && nutritionLabelData) {
+    if (extractInstruction === "per serving" && nutritionServingsData.servingSize) {
+      for (const key of nutritionDetailsKeys) {
+        const conversionFactor = 100 / nutritionServingsData.servingSize;
+        const value = nutritionLabelData[key as keyof NutritionInfoDetails];
+        if (value !== undefined) {
+          if (typeof value === "number") {
+            (nutritionLabelData[key as keyof NutritionInfoDetails] as number) =
+              value * conversionFactor;
+          }
         }
       }
     }

@@ -17,12 +17,13 @@ export const generateData = async <T>(
   buffer: Buffer<ArrayBufferLike>,
   prompt: string,
   schema: Schema
-): Promise<T> => {
+): Promise<T | null> => {
   const modelInstance = genAI.getGenerativeModel({
     model: model,
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: schema,
+      maxOutputTokens: 256,
     },
   });
 
@@ -40,6 +41,18 @@ export const generateData = async <T>(
     model: model,
     prompt: prompt,
   });
-
-  return JSON.parse(result.response.text()) as T;
+  try {
+    const parsedResult: T = JSON.parse(result.response.text());
+    
+    return parsedResult;
+  } catch (error) {
+    logger.error({
+      message: "Error parsing result",
+      error: error,
+      model: model,
+      prompt: prompt,
+      result: result.response.text(),
+    });
+    return null;
+  }
 };

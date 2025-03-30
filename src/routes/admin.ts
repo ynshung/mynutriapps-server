@@ -16,9 +16,9 @@ interface AdminInferenceProductProps {
 }
 
 interface InferenceResult {
-  frontLabelData?: FoodProduct;
-  nutritionLabelData?: NutritionInfoFull;
-  ingredientsLabelData?: FoodIngredientDetails;
+  frontLabelData?: FoodProduct | null;
+  nutritionLabelData?: NutritionInfoFull | null;  
+  ingredientsLabelData?: FoodIngredientDetails | null;
 }
 
 export const adminInferenceProduct = async ({

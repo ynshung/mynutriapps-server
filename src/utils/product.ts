@@ -18,7 +18,7 @@ import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { db } from "../db";
 import { and, eq } from "drizzle-orm";
 
-export const getProductData = async (id: number, userId: number | null) => {
+export const getProductData = async (id: number, userId?: number) => {
   const data = await db
     .select()
     .from(foodProductsTable)

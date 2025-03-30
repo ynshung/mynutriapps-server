@@ -507,9 +507,9 @@ router.post("/api/v1/admin/product/create-from-url", async (req, res) => {
 
   const [frontLabelFile, nutritionLabelFile, ingredientsFile] =
     await Promise.all([
-      fetchImageAsMulter(frontLabel),
-      fetchImageAsMulter(nutritionLabel),
-      fetchImageAsMulter(ingredients),
+      frontLabel ? fetchImageAsMulter(frontLabel) : undefined,
+      nutritionLabel ? fetchImageAsMulter(nutritionLabel) : undefined,
+      ingredients ? fetchImageAsMulter(ingredients) : undefined,
     ]);
 
   if (frontLabelFile === undefined) {

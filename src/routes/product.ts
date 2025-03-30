@@ -246,7 +246,7 @@ export const listRecentlyViewedProducts = async (
 
 export const getProduct = async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
-  const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
+  const userId = req.query.userId ? parseInt(req.query.userId as string) : undefined;
 
   // Process images
   const foodProductDetails = await getProductData(id, userId);
@@ -296,6 +296,7 @@ export const createProduct = async (
     try {
       let categoryId: number | undefined;
       // (1) Food Category
+      if (!frontLabelData) throw new Error("Front label data couldn't be processed");
       const categoryQueryResult = await tx
         .select()
         .from(foodCategoryTable)
@@ -348,11 +349,9 @@ export const createProduct = async (
         tx
       );
 
-      const foodProductDetails = await getProductData(productId, userID);
-
       return {
         status: "success",
-        data: foodProductDetails,
+        productId,
       };
     } catch (error) {
       logger.error(error);
