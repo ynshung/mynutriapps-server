@@ -90,7 +90,13 @@ export const foodProductsTable = pgTable("food_products", {
 
   verified: boolean().default(false),
 
-  foodCategoryId: integer().references(() => foodCategoryTable.id),
+  foodCategoryId: integer()
+    .notNull()
+    .default(0)
+    .references(() => foodCategoryTable.id, {
+      onDelete: "set default",
+      onUpdate: "cascade",
+    }),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
 });

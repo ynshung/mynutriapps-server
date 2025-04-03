@@ -469,15 +469,15 @@ export const nutritionInfoCategorySchema: Schema = {
         ],
       },
     },
-    uncategorized: {
-      type: SchemaType.ARRAY,
-      description:
-        // TODO: It might include the contents such as calories sodium etc
-        "List the remaining nutritional information that are not covered",
-      items: {
-        type: SchemaType.STRING,
-      },
-    },
+    // uncategorized: {
+    //   type: SchemaType.ARRAY,
+    //   description:
+    //     // TODO: It might include the contents such as calories sodium etc
+    //     "List the remaining nutritional information that are not covered",
+    //   items: {
+    //     type: SchemaType.STRING,
+    //   },
+    // },
   },
 };
 

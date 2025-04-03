@@ -10,7 +10,8 @@ export const processIngredientsLabel = async (
     model,
     ingredientsLabelBuffer,
     "List the ingredients, additives and allergens based on the JSON structure",
-    ingredientsSchema
+    ingredientsSchema,
+    1024
   );
 
   // logger.info({

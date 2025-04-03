@@ -16,14 +16,15 @@ export const generateData = async <T>(
   model: string,
   buffer: Buffer<ArrayBufferLike>,
   prompt: string,
-  schema: Schema
+  schema: Schema,
+  maxOutputTokens: number = 256,
 ): Promise<T | null> => {
   const modelInstance = genAI.getGenerativeModel({
     model: model,
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: schema,
-      maxOutputTokens: 256,
+      maxOutputTokens: maxOutputTokens,
     },
   });
 

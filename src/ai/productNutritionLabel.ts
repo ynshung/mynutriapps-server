@@ -13,7 +13,7 @@ import sharp from "sharp";
 
 export const processNutritionLabelV2 = async (
   nutritionLabelBuffer: Buffer<ArrayBufferLike>,
-  model: string = "gemini-1.5-flash"
+  model: string = "gemini-2.0-flash"
 ) => {
   const resizedBuffer = await sharp(nutritionLabelBuffer)
     .resize(512, 512, {
@@ -83,13 +83,13 @@ export const processNutritionLabelV2 = async (
     generateData<NutritionInfoDetails>(
       model,
       nutritionLabelBuffer,
-      `List the nutrition information ${extractInstruction}. Leave blank if not provided in the table. If the unit stated is not the same in the picture such as kJ instead of kcal in energy, convert it accordingly.`,
+      `List the nutrition information ${extractInstruction}. If the unit stated is not the same in the picture such as kJ instead of kcal in energy, convert it accordingly. Leave blank if the value not provided in the table.`,
       nutritionInfoDetailsSchema
     ),
     generateData<NutritionInfoCategory>(
       "gemini-2.0-flash-lite",
       nutritionLabelBuffer,
-      `List the vitamins, minerals and other uncategorized nutrition information based on the image, ignoring ${nutritionDetailsKeys.join(", ")}.`,
+      `List the vitamins and minerals listed on the nutritional label.`,
       nutritionInfoCategorySchema
     ),
   ]);
@@ -101,7 +101,7 @@ export const processNutritionLabelV2 = async (
         if (value !== undefined) {
           if (typeof value === "number") {
             (nutritionLabelData[key as keyof NutritionInfoDetails] as number) =
-              value * conversionFactor;
+              parseFloat((value * conversionFactor).toFixed(2));
           }
         }
       }
@@ -124,7 +124,7 @@ export const processNutritionLabelV2 = async (
 export const processNutritionLabel = async (
   nutritionLabel: Express.Multer.File,
   userID?: number,
-  model: string = "gemini-1.5-flash"
+  model: string = "gemini-2.0-flash-lite"
 ) => {
   let imageID = "";
   if (userID !== undefined) {

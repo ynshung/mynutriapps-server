@@ -18,7 +18,7 @@ import {
 import { Request, Response, NextFunction } from "express";
 import { upload } from "../middleware/upload";
 import "express-async-errors";
-import { authMiddleware, optionalAuthMiddleware } from "../middleware/auth";
+import { authMiddleware, optionalAuthMiddleware, userAuthMiddleware } from "../middleware/auth";
 import { db } from "../db";
 import {
   imagesTable,
@@ -48,18 +48,24 @@ router.get("/status", (req, res) => {
 });
 
 // User Profile
-router.use("/api/v1/user", authMiddleware);
 
 // Retrieve user profile
 // GET /api/v1/user/profile
 // Body: None
-router.get("/api/v1/user/profile", async (req, res) => {
+router.get("/api/v1/user/profile", userAuthMiddleware, async (req, res) => {
   if (req.userID) {
     const user = await db
       .select()
       .from(usersTable)
       .where(eq(usersTable.id, req.userID))
       .innerJoin(imagesTable, eq(usersTable.profilePicture, imagesTable.id));
+
+    if (user.length === 0) {
+      res.status(404).json({
+        status: "no_profile",
+      });
+      return;
+    }
     res.status(200).json({
       status: "success",
       data: user[0],
@@ -71,7 +77,7 @@ router.get("/api/v1/user/profile", async (req, res) => {
   }
 });
 
-router.post("/api/v1/user/onboarding", async (req, res) => {
+router.post("/api/v1/user/onboarding", userAuthMiddleware, async (req, res) => {
   const { firebaseUUID, email, emailVerified, body } = req;
   if (!email || !emailVerified) {
     res.status(403).json({
@@ -110,6 +116,7 @@ router.post("/api/v1/user/onboarding", async (req, res) => {
 
 router.post(
   "/api/v1/user/profile-picture",
+  authMiddleware,
   upload.single("file"),
   async (req, res) => {
     const { file } = req;
@@ -155,7 +162,7 @@ router.post(
   }
 );
 
-router.post("/api/v1/user/edit-profile", async (req, res) => {
+router.post("/api/v1/user/edit-profile", authMiddleware, async (req, res) => {
   const { userID, email, emailVerified, body } = req;
   if (!email || !emailVerified || !userID) {
     res.status(403).json({

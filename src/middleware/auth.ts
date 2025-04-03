@@ -59,6 +59,67 @@ export const authMiddleware = async (
         if (user.length >= 1) {
           req.userID = user[0].id;
           userIDMap[decodedToken.uid] = user[0].id;
+        } else {
+          res.status(404).json({
+            status: "error",
+            message: "User profile not found",
+          });
+        }
+      }
+
+      next();
+    } catch (error) {
+      console.error(error);
+      res.status(401).send("Unauthorized");
+    }
+  } else {
+    res.status(401).send("Unauthorized");
+  }
+};
+
+// Middleware that requires token but does not require user to have a profile
+export const userAuthMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const bearerToken = req.headers.authorization?.split("Bearer ")[1];
+
+  if (bearerToken) {
+    try {
+      const decodedToken = await auth.verifyIdToken(bearerToken);
+
+      // Attach uid to the request object
+      req.firebaseUUID = decodedToken.uid;
+      req.email = decodedToken.email;
+      req.emailVerified = decodedToken.email_verified;
+
+      // TODO: Fetch admin from db
+      if (decodedToken.uid === "dRblard7VFZIcVTD870NIQ07L633") {
+        req.userID = 0;
+        return;
+      }
+
+      if (!req.email || !req.emailVerified) {
+        res.status(403).json({
+          status: "error",
+          message: "Unverified account",
+        });
+        return;
+      }
+
+      // Check if the user exists in the database
+      if (userIDMap[decodedToken.uid]) {
+        req.userID = userIDMap[decodedToken.uid];
+      } else {
+        const user = await db
+          .select({ id: usersTable.id })
+          .from(usersTable)
+          .where(eq(usersTable.firebaseUUID, decodedToken.uid));
+
+        if (user.length >= 1) {
+          req.userID = user[0].id;
+          userIDMap[decodedToken.uid] = user[0].id;
         }
       }
 

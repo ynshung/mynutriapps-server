@@ -6,6 +6,8 @@ import { foodCategoryTable, usersTable } from "@src/db/schema";
 const initializeDatabase = async () => {
   console.log("⏳ Initializing database...");
   const start = Date.now();
+
+  // Add any new SQL commands below
   
   // Delete all rows
   await db.delete(foodCategoryTable);
@@ -36,6 +38,7 @@ const initializeDatabase = async () => {
     firebaseUUID: "dRblard7VFZIcVTD870NIQ07L633",
   });
 
+  // End of SQL commands
   const end = Date.now();
   console.log(`✅ Database initialized (${process.env.PROD_MODE ? "Production" : "Test"}) & took ${end - start}ms`);
   console.log("");

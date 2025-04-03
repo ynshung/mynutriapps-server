@@ -311,6 +311,7 @@ export const createProduct = async (
       // (1) Food Category
       if (!frontLabelData)
         throw new Error("Front label data couldn't be processed");
+      if (!frontLabelData.category) frontLabelData.category = "Uncategorized";
       const categoryQueryResult = await tx
         .select()
         .from(foodCategoryTable)
