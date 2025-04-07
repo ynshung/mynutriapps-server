@@ -8,6 +8,7 @@ import {
   searchBarcode,
   searchProducts,
   searchSuggestions,
+  listPopularProducts,
 } from "./product";
 import {
   addCategory,
@@ -354,6 +355,7 @@ router.delete("/api/v1/favorite", authMiddleware, async (req, res) => {
 });
 router.get("/api/v1/recently-viewed", authMiddleware, async (req, res) => {
   const { userID } = req;
+  const { page = 1, limit = 10 } = req.query;
 
   if (!userID) {
     res.status(403).json({
@@ -363,7 +365,23 @@ router.get("/api/v1/recently-viewed", authMiddleware, async (req, res) => {
     return;
   }
 
-  const recentlyViewedProducts = await listRecentlyViewedProducts(userID);
+  const recentlyViewedProducts = await listRecentlyViewedProducts(userID, Number(page), Number(limit));
+  res.status(200).json(recentlyViewedProducts);
+});
+
+router.get("/api/v1/popular", optionalAuthMiddleware, async (req, res) => {
+  const { userID } = req;
+  const { page = 1, limit = 10 } = req.query;
+
+  if (!userID) {
+    res.status(403).json({
+      status: "error",
+      message: "Invalid account",
+    });
+    return;
+  }
+
+  const recentlyViewedProducts = await listPopularProducts(Number(page), Number(limit), userID);
   res.status(200).json(recentlyViewedProducts);
 });
 

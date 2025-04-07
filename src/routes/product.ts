@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "@src/db";
-import { and, arrayOverlaps, desc, eq, sql } from "drizzle-orm";
+import { and, arrayOverlaps, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import {
   foodProductsTable,
   imageFoodProductsTable,
@@ -21,6 +21,8 @@ import {
   uploadProductImages,
 } from "../utils/product";
 import { searchProductsMS, searchSuggestionsMS } from "../utils/minisearch";
+
+// TODO: Generalize the functions in this file, whether to use req, res directly or not
 
 export const listProducts = async (req: Request, res: Response) => {
   const { userID } = req;
@@ -82,6 +84,75 @@ export const listProducts = async (req: Request, res: Response) => {
   }
 
   res.json(data);
+};
+
+export const listPopularProducts = async (page: number, limit: number, userID?: number) => {
+  let data: ProductCardType[];
+
+  const products = db
+    .select({
+      ...getTableColumns(foodProductsTable),
+      clickCount: db.$count(userProductClicksTable, eq(userProductClicksTable.foodProductId, foodProductsTable.id)).as("click_count"),
+    })
+    .from(foodProductsTable)
+    .as("products");
+  
+  const subquery = db
+    .select({
+      id: products.id,
+      name: sql<string>`${products.name}`.as("product_name"),
+      barcode: products.barcode,
+      brand: products.brand,
+      category: sql<string>`${foodCategoryTable.name}`.as("category_name"),
+      image: imagesTable.imageKey,
+      verified: products.verified,
+      createdAt: products.createdAt,
+      clickCount: products.clickCount,
+    })
+    .from(products)
+    .innerJoin(
+      imageFoodProductsTable,
+      eq(imageFoodProductsTable.foodProductId, products.id)
+    )
+    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
+    .innerJoin(
+      foodCategoryTable,
+      eq(products.foodCategoryId, foodCategoryTable.id)
+    )
+    .where(eq(imageFoodProductsTable.type, "front"))
+    .orderBy(desc(sql`click_count`))
+    .limit(Number(limit))
+    .offset((Number(page) - 1) * Number(limit))
+    .as("subquery");
+
+  if (userID) {
+    data = await db
+      .select({
+        id: subquery.id,
+        name: subquery.name,
+        barcode: subquery.barcode,
+        brand: subquery.brand,
+        category: subquery.category,
+        image: subquery.image,
+        verified: subquery.verified,
+        createdAt: subquery.createdAt,
+        clickCount: subquery.clickCount,  
+        favorite: sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`,
+      })
+      .from(subquery)
+      .leftJoin(
+        userProductFavoritesTable,
+        and(
+          eq(userProductFavoritesTable.foodProductId, subquery.id),
+          eq(userProductFavoritesTable.userID, userID)
+        )
+      )
+      .orderBy(desc(sql`click_count`));
+  } else {
+    data = await db.select().from(subquery);
+  }
+  
+  return data;
 };
 
 export const searchBarcode = async (req: Request, res: Response) => {
@@ -210,7 +281,9 @@ export const listFavoriteProducts = async (userID: number) => {
 };
 
 export const listRecentlyViewedProducts = async (
-  id: number
+  id: number,
+  page: number = 1,
+  limit: number = 10
 ): Promise<ProductCardType[]> => {
   const subquery = db
     .selectDistinctOn([userProductClicksTable.foodProductId])
@@ -248,7 +321,8 @@ export const listRecentlyViewedProducts = async (
     )
     .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
     .where(eq(imageFoodProductsTable.type, "front"))
-    .limit(8);
+    .limit(limit)
+    .offset((page - 1) * limit);
 
   return products;
 };
