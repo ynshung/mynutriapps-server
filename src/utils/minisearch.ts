@@ -1,4 +1,4 @@
-import { ProductSearchResult } from "@/types";
+import { ProductCardType, ProductSearchResult } from "@/types";
 import { db } from "../db";
 import {
   foodCategoryTable,
@@ -28,7 +28,7 @@ const getProductMS = async (): Promise<ProductSearchResult[]> => {
 
 export const searchProductsMS = async (
   query: string
-): Promise<ProductSearchResult[]> => {
+): Promise<ProductCardType[]> => {
   const miniSearch = new MiniSearch({
     fields: ["name", "brand"],
     storeFields: ["id"],

@@ -47,7 +47,7 @@ export type ProductCardType = {
   verified: boolean | null;
   image: string | null;
   favorite?: boolean;
-  createdAt: Date; // might be missing on some query
+  createdAt?: Date; // might be missing on some query
 };
 
 // For product card
