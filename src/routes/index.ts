@@ -373,14 +373,6 @@ router.get("/api/v1/popular", optionalAuthMiddleware, async (req, res) => {
   const { userID } = req;
   const { page = 1, limit = 10 } = req.query;
 
-  if (!userID) {
-    res.status(403).json({
-      status: "error",
-      message: "Invalid account",
-    });
-    return;
-  }
-
   const recentlyViewedProducts = await listPopularProducts(Number(page), Number(limit), userID);
   res.status(200).json(recentlyViewedProducts);
 });
