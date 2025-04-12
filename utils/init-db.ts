@@ -18,7 +18,6 @@ const initializeDatabase = async () => {
     .map(([code, subcategory]) => ({
       id: Number(code),
       name: subcategory,
-      alias: [subcategory],
     }))
     .slice(1); // Skip the header
   

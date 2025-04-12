@@ -74,7 +74,13 @@ export const imagesTable = pgTable("images", {
 export const foodCategoryTable = pgTable("food_category", {
   id: serial().primaryKey(),
   name: text().notNull(),
-  alias: text().array(),
+  parentCategory: integer().references(
+    (): AnyPgColumn => foodCategoryTable.id,
+    {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }
+  ),
 });
 
 // TODO: Setup indexes
