@@ -8,20 +8,41 @@ const initializeDatabase = async () => {
   const start = Date.now();
 
   // Add any new SQL commands below
-  
-  // Delete all rows
-  await db.delete(foodCategoryTable);
 
-  const foodCategories = readFileSync(resolve(__dirname, "../data/food_categories.tsv"), "utf-8")
-    .split("\n")
-    .map((line) => line.split("\t"))
-    .map(([code, subcategory]) => ({
-      id: Number(code),
-      name: subcategory,
-    }))
-    .slice(1); // Skip the header
-  
-  await db.insert(foodCategoryTable).values(foodCategories);
+  const filePath = resolve(__dirname, "../data/food_categories.tsv");
+  const data = readFileSync(filePath, "utf-8");
+
+  const lines = data.trim().split("\n");
+
+  const categoriesMap: Map<string, string[]> = new Map();
+
+  for (const line of lines) {
+    const [mainCategory, subCategory] = line.split("\t");
+
+    const subCategoryList = categoriesMap.get(mainCategory) || [];
+    if (subCategory) subCategoryList.push(subCategory);
+
+    categoriesMap.set(mainCategory, subCategoryList);
+  }
+
+  categoriesMap.forEach(async (subCategories, mainCategory) => {
+    const mainCategoryRecord = await db
+      .insert(foodCategoryTable)
+      .values({
+        name: mainCategory,
+        isParentCategory: subCategories.length > 0,
+      })
+      .returning({ id: foodCategoryTable.id });
+
+    if (subCategories.length === 0) return;
+
+    await db.insert(foodCategoryTable).values(
+      subCategories.map((subCategory) => ({
+        name: subCategory,
+        parentId: mainCategoryRecord[0].id,
+      }))
+    );
+  });
 
   await db.insert(usersTable).values({
     name: "Anonymous",
@@ -29,7 +50,7 @@ const initializeDatabase = async () => {
     email: "anonymous@ynshung.com",
     firebaseUUID: "anonymous-uuid",
   });
-  
+
   await db.insert(usersTable).values({
     name: "Admin",
     id: 0,
@@ -39,10 +60,14 @@ const initializeDatabase = async () => {
 
   // End of SQL commands
   const end = Date.now();
-  console.log(`✅ Database initialized (${process.env.PROD_MODE ? "Production" : "Test"}) & took ${end - start}ms`);
+  console.log(
+    `✅ Database initialized (${
+      process.env.PROD_MODE ? "Production" : "Test"
+    }) & took ${end - start}ms`
+  );
   console.log("");
   process.exit(0);
-}
+};
 
 initializeDatabase().catch((err) => {
   console.error("❌ Database initialization failed");

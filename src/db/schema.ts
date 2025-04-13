@@ -81,6 +81,7 @@ export const foodCategoryTable = pgTable("food_category", {
       onUpdate: "cascade",
     }
   ),
+  isParentCategory: boolean().notNull().default(false),
 });
 
 // TODO: Setup indexes

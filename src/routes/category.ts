@@ -10,6 +10,14 @@ export const listCategory = async () => {
   }, {} as Record<number, string>);
 };
 
+export const listCategoryChildren = async () => {
+  const categories = await db.select().from(foodCategoryTable).orderBy(foodCategoryTable.id).where(eq(foodCategoryTable.isParentCategory, false));
+  return categories.reduce((acc, category) => {
+    acc[category.id] = category.name;
+    return acc;
+  }, {} as Record<number, string>);
+};
+
 export const getCategory = async (id: number) => {
   const category = await db.select().from(foodCategoryTable).where(eq(foodCategoryTable.id, id));
   return category[0];

@@ -1,9 +1,9 @@
 import { Schema, SchemaType } from "@google/generative-ai";
-import { listCategory } from "../routes/category";
+import { listCategoryChildren } from "../routes/category";
 
 export async function getFoodProductSchema(): Promise<Schema> {
   // TODO: List all aliases instead of main category name
-  const categories = await listCategory();
+  const categories = await listCategoryChildren();
   const categoryEnum = Object.values(categories);
 
   return {
