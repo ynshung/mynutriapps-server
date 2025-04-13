@@ -30,7 +30,6 @@ const initializeDatabase = async () => {
       .insert(foodCategoryTable)
       .values({
         name: mainCategory,
-        isParentCategory: subCategories.length > 0,
       })
       .returning({ id: foodCategoryTable.id });
 

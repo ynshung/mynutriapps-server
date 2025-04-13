@@ -11,15 +11,18 @@ import {
   listPopularProducts,
 } from "./product";
 import {
-  addCategory,
-  deleteCategory,
+  getCategoryDetails,
   listCategory,
-  updateCategory,
+  listProductsCategory,
 } from "./category";
 import { Request, Response, NextFunction } from "express";
 import { upload } from "../middleware/upload";
 import "express-async-errors";
-import { authMiddleware, optionalAuthMiddleware, userAuthMiddleware } from "../middleware/auth";
+import {
+  authMiddleware,
+  optionalAuthMiddleware,
+  userAuthMiddleware,
+} from "../middleware/auth";
 import { db } from "../db";
 import {
   imagesTable,
@@ -201,23 +204,23 @@ router.get("/api/v1/category", async (req, res) => {
   res.status(200).json(categories);
 });
 
-router.post("/api/v1/category", async (req, res) => {
-  const { id, name } = req.body;
-  const category = await addCategory(id, name);
-  res.status(201).json(category);
-});
-
-router.put("/api/v1/category/:id", async (req, res) => {
+router.get("/api/v1/category/:id", optionalAuthMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { name } = req.body;
-  const category = await updateCategory(Number(id), name);
-  res.status(200).json(category);
-});
+  const { userID } = req;
+  const { page = 1, limit = 10 } = req.query;
 
-router.delete("/api/v1/category/:id", async (req, res) => {
-  const { id } = req.params;
-  await deleteCategory(Number(id));
-  res.status(204).json();
+  const productCategory = await listProductsCategory(
+    Number(id),
+    userID,
+    Number(page),
+    Number(limit)
+  );
+  res
+    .status(200)
+    .json({
+      category: await getCategoryDetails(Number(id)),
+      products: productCategory,
+    });
 });
 
 // Food Products
@@ -365,7 +368,11 @@ router.get("/api/v1/recently-viewed", authMiddleware, async (req, res) => {
     return;
   }
 
-  const recentlyViewedProducts = await listRecentlyViewedProducts(userID, Number(page), Number(limit));
+  const recentlyViewedProducts = await listRecentlyViewedProducts(
+    userID,
+    Number(page),
+    Number(limit)
+  );
   res.status(200).json(recentlyViewedProducts);
 });
 
@@ -373,7 +380,11 @@ router.get("/api/v1/popular", optionalAuthMiddleware, async (req, res) => {
   const { userID } = req;
   const { page = 1, limit = 10 } = req.query;
 
-  const recentlyViewedProducts = await listPopularProducts(Number(page), Number(limit), userID);
+  const recentlyViewedProducts = await listPopularProducts(
+    Number(page),
+    Number(limit),
+    userID
+  );
   res.status(200).json(recentlyViewedProducts);
 });
 

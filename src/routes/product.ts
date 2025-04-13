@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "@src/db";
-import { and, arrayOverlaps, desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { and, arrayOverlaps, desc, eq, getTableColumns, gt, sql } from "drizzle-orm";
 import {
   foodProductsTable,
   imageFoodProductsTable,
@@ -119,7 +119,7 @@ export const listPopularProducts = async (page: number, limit: number, userID?: 
       foodCategoryTable,
       eq(products.foodCategoryId, foodCategoryTable.id)
     )
-    .where(eq(imageFoodProductsTable.type, "front"))
+    .where(and(eq(imageFoodProductsTable.type, "front"), gt(products.clickCount, 0)))
     .orderBy(desc(sql`click_count`))
     .limit(Number(limit))
     .offset((Number(page) - 1) * Number(limit))

@@ -81,7 +81,10 @@ export const foodCategoryTable = pgTable("food_category", {
       onUpdate: "cascade",
     }
   ),
-  isParentCategory: boolean().notNull().default(false),
+  image: uuid().references((): AnyPgColumn => imagesTable.id, {
+    onDelete: "set null",
+    onUpdate: "cascade",
+  }),
 });
 
 // TODO: Setup indexes
