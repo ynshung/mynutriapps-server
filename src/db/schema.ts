@@ -1,4 +1,4 @@
-import { AnyPgColumn, boolean, date } from "drizzle-orm/pg-core";
+import { AnyPgColumn, boolean, date, index, vector } from "drizzle-orm/pg-core";
 import {
   integer,
   numeric,
@@ -69,7 +69,10 @@ export const imagesTable = pgTable("images", {
     onDelete: "set null",
     onUpdate: "cascade",
   }),
-});
+  embedding: vector('embedding', { dimensions: 512 }),
+}, (table) => [
+  index('embeddingIndex').using('hnsw', table.embedding.op('vector_cosine_ops')),
+]);
 
 export const foodCategoryTable = pgTable("food_category", {
   id: serial().primaryKey(),

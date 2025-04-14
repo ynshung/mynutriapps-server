@@ -14,9 +14,6 @@ declare module "express-serve-static-core" {
   }
 }
 
-// firebaseUID to userID mapping
-const userIDMap: Record<string, number> = {};
-
 export const authMiddleware = async (
   req: Request,
   res: Response,
@@ -47,24 +44,18 @@ export const authMiddleware = async (
         return;
       }
 
-      // Check if the user exists in the database
-      if (userIDMap[decodedToken.uid]) {
-        req.userID = userIDMap[decodedToken.uid];
-      } else {
-        const user = await db
-          .select({ id: usersTable.id })
-          .from(usersTable)
-          .where(eq(usersTable.firebaseUUID, decodedToken.uid));
+      const user = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.firebaseUUID, decodedToken.uid));
 
-        if (user.length >= 1) {
-          req.userID = user[0].id;
-          userIDMap[decodedToken.uid] = user[0].id;
-        } else {
-          res.status(404).json({
-            status: "error",
-            message: "User profile not found",
-          });
-        }
+      if (user.length >= 1) {
+        req.userID = user[0].id;
+      } else {
+        res.status(404).json({
+          status: "error",
+          message: "User profile not found",
+        });
       }
 
       next();
@@ -109,18 +100,13 @@ export const userAuthMiddleware = async (
       }
 
       // Check if the user exists in the database
-      if (userIDMap[decodedToken.uid]) {
-        req.userID = userIDMap[decodedToken.uid];
-      } else {
-        const user = await db
-          .select({ id: usersTable.id })
-          .from(usersTable)
-          .where(eq(usersTable.firebaseUUID, decodedToken.uid));
+      const user = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.firebaseUUID, decodedToken.uid));
 
-        if (user.length >= 1) {
-          req.userID = user[0].id;
-          userIDMap[decodedToken.uid] = user[0].id;
-        }
+      if (user.length >= 1) {
+        req.userID = user[0].id;
       }
 
       next();
@@ -157,18 +143,13 @@ export const optionalAuthMiddleware = async (
 
       if (req.email && req.emailVerified) {
         // Check if the user exists in the database
-        if (userIDMap[decodedToken.uid]) {
-          req.userID = userIDMap[decodedToken.uid];
-        } else {
-          const user = await db
-            .select({ id: usersTable.id })
-            .from(usersTable)
-            .where(eq(usersTable.firebaseUUID, decodedToken.uid));
+        const user = await db
+          .select({ id: usersTable.id })
+          .from(usersTable)
+          .where(eq(usersTable.firebaseUUID, decodedToken.uid));
 
-          if (user.length >= 1) {
-            req.userID = user[0].id;
-            userIDMap[decodedToken.uid] = user[0].id;
-          }
+        if (user.length >= 1) {
+          req.userID = user[0].id;
         }
       }
     } catch (error) {

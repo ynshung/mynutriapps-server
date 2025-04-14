@@ -36,12 +36,14 @@ import { NewFoodProductFormData } from "@/types";
 import {
   createNewProduct,
   editProductData,
+  getProductCard,
   uploadProductImages,
 } from "../utils/product";
 import { bufferToMulter, fetchImageAsMulter } from "../utils/fetchImage";
 import { uploadImage } from "../utils/image";
 import sharp from "sharp";
 import { adminInferenceProduct } from "./admin";
+import { findSimilarFoodProduct } from "../utils/frontImageVector";
 
 const router = Router();
 
@@ -62,7 +64,7 @@ router.get("/api/v1/user/profile", userAuthMiddleware, async (req, res) => {
       .select()
       .from(usersTable)
       .where(eq(usersTable.id, req.userID))
-      .innerJoin(imagesTable, eq(usersTable.profilePicture, imagesTable.id));
+      .leftJoin(imagesTable, eq(usersTable.profilePicture, imagesTable.id));
 
     if (user.length === 0) {
       res.status(404).json({
@@ -215,17 +217,36 @@ router.get("/api/v1/category/:id", optionalAuthMiddleware, async (req, res) => {
     Number(page),
     Number(limit)
   );
-  res
-    .status(200)
-    .json({
-      category: await getCategoryDetails(Number(id)),
-      products: productCategory,
-    });
+  res.status(200).json({
+    category: await getCategoryDetails(Number(id)),
+    products: productCategory,
+  });
 });
 
 // Food Products
 router.get("/api/v1/list", optionalAuthMiddleware, listProducts);
 router.get("/api/v1/product/:id", optionalAuthMiddleware, getProduct);
+router.get(
+  "/api/v1/product/similar/:id",
+  optionalAuthMiddleware,
+  async (req, res) => {
+    const { id } = req.params;
+    const { userID } = req;
+    const similarProducts = await findSimilarFoodProduct(Number(id));
+    if (!similarProducts) {
+      res.status(200).json([]);
+      return;
+    }
+    const data = await Promise.all(
+      similarProducts.map(async (item) => {
+        const { id, similarity } = item;
+        const product = await getProductCard(Number(id), userID);
+        return { id, similarity, product };
+      })
+    );
+    res.status(200).json(data);
+  }
+);
 
 router.get("/api/v1/search-barcode", optionalAuthMiddleware, searchBarcode);
 

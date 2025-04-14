@@ -16,7 +16,7 @@ import { toArray, toStrOrNull, toValidStringArrayOrNull } from "./type";
 import { uploadImage } from "./image";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { db } from "../db";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 export const getProductData = async (id: number, userId?: number) => {
   const data = await db
@@ -71,10 +71,67 @@ export const getProductData = async (id: number, userId?: number) => {
       foodProductDetails.images.push({
         ...obj.images,
         type: obj.image_food_products.type ?? "other",
+        embedding: null,
       });
     }
   }
   return foodProductDetails;
+};
+
+export const getProductCard = async (productID: number, userID?: number) => {
+  const subquery = db
+    .select({
+      id: foodProductsTable.id,
+      name: sql<string>`${foodProductsTable.name}`.as("product_name"),
+      barcode: foodProductsTable.barcode,
+      brand: foodProductsTable.brand,
+      category: sql<string>`${foodCategoryTable.name}`.as("category_name"),
+      image: imagesTable.imageKey,
+      verified: foodProductsTable.verified,
+      createdAt: foodProductsTable.createdAt,
+    })
+    .from(foodProductsTable)
+    .innerJoin(
+      imageFoodProductsTable,
+      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
+    )
+    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
+    .innerJoin(
+      foodCategoryTable,
+      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
+    )
+    .where(and(eq(imageFoodProductsTable.type, "front"), eq(foodProductsTable.id, productID)))
+    .orderBy(desc(foodProductsTable.createdAt))
+    .as("subquery");
+
+  let data;
+  if (userID) {
+    data = await db
+      .select({
+        id: subquery.id,
+        name: subquery.name,
+        barcode: subquery.barcode,
+        brand: subquery.brand,
+        category: subquery.category,
+        image: subquery.image,
+        verified: subquery.verified,
+        createdAt: subquery.createdAt,
+        favorite: sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`,
+      })
+      .from(subquery)
+      .leftJoin(
+        userProductFavoritesTable,
+        and(
+          eq(userProductFavoritesTable.foodProductId, subquery.id),
+          eq(userProductFavoritesTable.userID, userID)
+        )
+      )
+      .orderBy(desc(subquery.createdAt));
+  } else {
+    data = await db.select().from(subquery);
+  }
+
+  return data[0];
 };
 
 export const getProductImages = async (id: number) => {
