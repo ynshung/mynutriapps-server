@@ -1,5 +1,9 @@
 import { db } from "@/src/db";
-import { foodProductsTable, imageFoodProductsTable, imagesTable } from "@/src/db/schema";
+import {
+  foodProductsTable,
+  imageFoodProductsTable,
+  imagesTable,
+} from "@/src/db/schema";
 import { s3 } from "@/src/utils/s3";
 import {
   and,
@@ -65,7 +69,8 @@ export const processImage = async (imageBlob: Blob) => {
   };
 };
 
-listFoodProductFrontImageUnvectorized().then(async (data) => {
+export const processUnvectorizedImages = async () => {
+  const data = await listFoodProductFrontImageUnvectorized();
   if (!data || data.length === 0) {
     console.log("No images to process");
     return;
@@ -94,11 +99,14 @@ listFoodProductFrontImageUnvectorized().then(async (data) => {
 
     console.log("Updated embedding for image:", imageKey);
   }
-});
+};
 
 export const findSimilarFoodProduct = async (productID: number) => {
   const product = await db
-    .select({ embedding: imagesTable.embedding, category: foodProductsTable.foodCategoryId })
+    .select({
+      embedding: imagesTable.embedding,
+      category: foodProductsTable.foodCategoryId,
+    })
     .from(imageFoodProductsTable)
     .innerJoin(imagesTable, eq(imagesTable.id, imageFoodProductsTable.imageId))
     .innerJoin(
