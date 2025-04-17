@@ -15,3 +15,9 @@ S3_SECRET_ACCESS_KEY=
 
 BACKEND_AI_HOST=http://127.0.0.1:5001
 ```
+
+## Docker
+```bash
+docker build -t ynshung/mna-server .
+docker run -v $(pwd)/mynutriapps-service-account.json:/app/mynutriapps-service-account.json --env-file .env -p 3000:3000 ynshung/mna-server
+```
