@@ -1,0 +1,17 @@
+# MyNutriApps Server
+
+## Environment Setup
+```
+PORT=3000
+PROD_DATABASE_URL=pg://
+TEST_DATABASE_URL=pg://
+
+GEMINI_API=
+
+S3_BUCKET_NAME=
+S3_REGION=
+S3_ACCESS_KEY=
+S3_SECRET_ACCESS_KEY=
+
+BACKEND_AI_HOST=http://127.0.0.1:5001
+```
