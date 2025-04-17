@@ -50,7 +50,9 @@ const router = Router();
 router.use(cors());
 
 router.get("/status", (req, res) => {
-  res.status(200);
+  res.status(200).json({
+    status: "success",
+  });
 });
 
 // User Profile
