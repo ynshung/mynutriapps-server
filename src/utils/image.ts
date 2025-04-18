@@ -37,6 +37,15 @@ export const uploadImage = async (
   const imageKey = prependDate
     ? `public/${userID}/${Date.now() - Math.floor(Math.random() * 1000 - 500)}-${image.originalname}`
     : `public/${userID}/${image.originalname}`;
+  
+  if (image.buffer.byteLength === 0) {
+    logger.warn({
+      userID: userID,
+      message: "Unexpected empty image buffer",
+      imageKey: imageKey,
+    });
+    throw new Error("Image buffer is empty");
+  }
 
   try {
     await uploadToS3(imageKey, image.buffer, image.mimetype);

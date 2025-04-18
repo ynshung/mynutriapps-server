@@ -230,7 +230,7 @@ export const uploadProductImages = async (
   await Promise.all(
     Object.keys(images).map(async (key) => {
       const image = images[key as keyof typeof images];
-      if (image) {
+      if (image && image.size > 0) {
         const { imageID } = await uploadImage(image, userID);
 
         await tx.insert(imageFoodProductsTable).values({

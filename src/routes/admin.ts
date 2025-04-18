@@ -4,6 +4,7 @@ import { processIngredientsLabel } from "../ai/productIngredients";
 import { processNutritionLabelV2 } from "../ai/productNutritionLabel";
 import { fetchImageAsBuffer } from "../utils/fetchImage";
 import { Response } from "express";
+import { logger } from "../utils/logger";
 
 interface AdminInferenceProductProps {
   frontLabel?: Express.Multer.File;
@@ -35,14 +36,13 @@ export const adminInferenceProduct = async ({
     nutrition_label: processNutritionLabelV2,
     ingredients: processIngredientsLabel,
   };
-
   const tasks: Promise<InferenceResult>[] = [];
 
   if (frontLabel || (frontLabelUrl && frontLabelUrl.startsWith("http"))) {
     tasks.push(
       inferenceHandlers
         .front_label(
-          frontLabel
+          frontLabel && (frontLabel?.size > 0)
             ? frontLabel.buffer
             : await fetchImageAsBuffer(frontLabelUrl!)
         )
@@ -58,7 +58,7 @@ export const adminInferenceProduct = async ({
     tasks.push(
       inferenceHandlers
         .nutrition_label(
-          nutritionLabel
+          nutritionLabel && (nutritionLabel?.size > 0)
             ? nutritionLabel.buffer
             : await fetchImageAsBuffer(nutritionLabelUrl!)
         )
@@ -71,7 +71,7 @@ export const adminInferenceProduct = async ({
     tasks.push(
       inferenceHandlers
         .ingredients(
-          ingredients
+          ingredients && (ingredients?.size > 0)
             ? ingredients.buffer
             : await fetchImageAsBuffer(ingredientsUrl!)
         )
@@ -120,6 +120,9 @@ export const adminInferenceProduct = async ({
     );
 
     const hasRejected = results.some((result) => result.status === "rejected");
+    if (hasRejected) {
+      logger.warn("Some tasks were rejected", results);
+    }
 
     res.status(201).json({
       status: hasRejected ? "warning" : "success",
