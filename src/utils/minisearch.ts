@@ -22,8 +22,13 @@ const getProductMS = async (): Promise<ProductSearchResult[]> => {
       foodCategoryTable,
       eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
     );
-
-  return data;
+  
+  // Replace diacritics
+  return data.map((item) => ({
+    ...item,
+    name: item.name ? item.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "",
+    brand: item.brand ? item.brand.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "",
+  }));
 };
 
 export const searchProductsMS = async (
