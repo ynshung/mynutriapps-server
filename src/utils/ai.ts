@@ -1,7 +1,8 @@
-import { GoogleGenerativeAI, Part, Schema } from "@google/generative-ai";
+import { GoogleGenAI, Part, Schema } from "@google/genai";
+
 import { logger } from "./logger";
 
-export const genAI = new GoogleGenerativeAI(process.env.GEMINI_API!);
+export const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API! });
 
 export function bufferToGenerativePart(buffer: Buffer): Part {
   return {
@@ -17,34 +18,34 @@ export const generateData = async <T>(
   buffer: Buffer<ArrayBufferLike>,
   prompt: string,
   schema: Schema,
-  maxOutputTokens: number = 256,
+  maxOutputTokens: number = 256
 ): Promise<T | null> => {
-  const modelInstance = genAI.getGenerativeModel({
+  const result = await genAI.models.generateContent({
     model: model,
-    generationConfig: {
+    config: {
       responseMimeType: "application/json",
       responseSchema: schema,
       maxOutputTokens: maxOutputTokens,
     },
+    contents: [
+      bufferToGenerativePart(buffer),
+      prompt,
+    ],
   });
-
-  const result = await modelInstance.generateContent([
-    bufferToGenerativePart(buffer),
-    prompt,
-  ]);
 
   logger.info({
     message: "Tokens used",
     usage: {
-      inputToken: result.response.usageMetadata?.promptTokenCount,
-      outputToken: result.response.usageMetadata?.candidatesTokenCount,
+      inputToken: result.usageMetadata?.promptTokenCount,
+      outputToken: result.usageMetadata?.candidatesTokenCount,
     },
     model: model,
     prompt: prompt,
   });
   try {
-    const parsedResult: T = JSON.parse(result.response.text());
-    
+    if (result.text === undefined) throw new Error("Empty response from model.");
+    const parsedResult: T = JSON.parse(result.text);
+
     return parsedResult;
   } catch (error) {
     logger.error({
@@ -52,7 +53,7 @@ export const generateData = async <T>(
       error: error,
       model: model,
       prompt: prompt,
-      result: result.response.text(),
+      result: result.text,
     });
     return null;
   }
