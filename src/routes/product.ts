@@ -358,6 +358,7 @@ export const getProduct = async (req: Request, res: Response) => {
   }
 };
 
+// TODO: Refactor this function to use Buffer instead of Express.Multer.File
 export const createProduct = async (
   barcode: string,
   userID: number,
@@ -411,6 +412,7 @@ export const createProduct = async (
           ingredients: ingredientsData.ingredients,
           allergens: ingredientsData.allergens as string[] | undefined,
           additives: ingredientsData.additives as string[] | undefined,
+          createdBy: userID,
         };
       }
 

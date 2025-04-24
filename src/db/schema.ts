@@ -112,6 +112,15 @@ export const foodProductsTable = pgTable("food_products", {
     }),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
+
+  createdBy: integer()
+    .notNull()
+    .default(-1)
+    .references(() => usersTable.id, {
+      onDelete: "set default",
+      onUpdate: "cascade",
+    }),
+  adminComment: text(),
 });
 
 export const nutritionInfoTable = pgTable("nutrition_info", {
