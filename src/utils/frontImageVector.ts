@@ -40,7 +40,7 @@ const listFoodProductFrontImageUnvectorized = async () => {
 
 const fetchImageFromS3 = async (imageKey: string) => {
   const command = new GetObjectCommand({
-    Bucket: "mynutriapps",
+    Bucket: process.env.S3_BUCKET_NAME!,
     Key: imageKey,
   });
   const response = await s3.send(command);
@@ -77,7 +77,6 @@ export const processUnvectorizedImages = async () => {
   }
   for (const item of data) {
     const imageKey = item.imageKey;
-    console.log("Processing image:", imageKey);
 
     const image = await fetchImageFromS3(imageKey);
     if (!image) {

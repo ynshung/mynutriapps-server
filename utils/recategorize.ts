@@ -65,10 +65,11 @@ const recategorize = async (categoryID: number = 0) => {
         .where(eq(foodProductsTable.id, foodProductID));
   
       console.log(
-        `\u001b[1;32mRecategorized ${frontLabelData.name} (${frontLabelData.brand}) to ${frontLabelData.category}\u001b[0m`
+        `\u001b[1;32mRecategorized ${item.id} ${frontLabelData.name} (${frontLabelData.brand}) to ${frontLabelData.category}\u001b[0m`
       );
     }
+    // await new Promise((resolve) => setTimeout(resolve, 250));
   }
 };
 
-recategorize(0);
+recategorize(84)
