@@ -11,7 +11,7 @@ import { toValidStringArrayOrNull } from "@/src/utils/type";
 import { Schema, Type } from "@google/genai";
 import { asc, eq } from "drizzle-orm";
 
-const START_ID = 0;
+const START_ID = 40;
 const AI_MODEL = "gemini-2.0-flash-lite";
 
 const relabelVitaminsAndMinerals = async () => {
@@ -81,14 +81,12 @@ const relabelVitaminsAndMinerals = async () => {
         vitaminSchema
       );
 
-      if (vitaminData) {
-        await db
-          .update(nutritionInfoTable)
-          .set({
-            vitamins: toValidStringArrayOrNull(vitaminData),
-          })
-          .where(eq(nutritionInfoTable.foodProductId, Number(id)));
-      }
+      await db
+        .update(nutritionInfoTable)
+        .set({
+          vitamins: toValidStringArrayOrNull(vitaminData ?? undefined),
+        })
+        .where(eq(nutritionInfoTable.foodProductId, Number(id)));
 
       const mineralSchema: Schema = {
         type: Type.ARRAY,
@@ -103,35 +101,33 @@ const relabelVitaminsAndMinerals = async () => {
         `List the minerals that are on the nutritional table. Available minerals are: calcium, chloride, chromium, copper, fluoride, iodine, iron, magnesium, manganese, molybdenum, phosphorus, potassium, selenium and zinc.`,
         mineralSchema
       );
-      if (mineralData) {
-        const validMinerals = [
-          "calcium",
-          "chloride",
-          "chromium",
-          "copper",
-          "fluoride",
-          "iodine",
-          "iron",
-          "magnesium",
-          "manganese",
-          "molybdenum",
-          "phosphorus",
-          "potassium",
-          "selenium",
-          "zinc",
-        ];
+      const validMinerals = [
+        "calcium",
+        "chloride",
+        "chromium",
+        "copper",
+        "fluoride",
+        "iodine",
+        "iron",
+        "magnesium",
+        "manganese",
+        "molybdenum",
+        "phosphorus",
+        "potassium",
+        "selenium",
+        "zinc",
+      ];
 
-        const filteredMineralData = mineralData
-          .map((mineral) => mineral.toLowerCase())
-          .filter((mineral) => validMinerals.includes(mineral));
-        
-        await db
-          .update(nutritionInfoTable)
-          .set({
-            minerals: toValidStringArrayOrNull(filteredMineralData),
-          })
-          .where(eq(nutritionInfoTable.foodProductId, Number(id)));
-      }
+      const filteredMineralData = (mineralData ?? [])
+        .map((mineral) => mineral.toLowerCase())
+        .filter((mineral) => validMinerals.includes(mineral));
+
+      await db
+        .update(nutritionInfoTable)
+        .set({
+          minerals: toValidStringArrayOrNull(filteredMineralData),
+        })
+        .where(eq(nutritionInfoTable.foodProductId, Number(id)));
     } catch (error) {
       logger.error(
         `Error fetching or processing image for key: ${imageKey}`,
