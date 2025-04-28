@@ -15,7 +15,8 @@ import { asc, eq } from "drizzle-orm";
 
 const START_ID = 0;
 const AI_MODEL = "gemini-2.5-flash-preview-04-17";
-const AI_LITE_MODEL = "gemini-2.0-flash";
+
+const RELABEL = [true, false, false]; // [front, nutrition, ingredients]
 
 const relabelAll = async () => {
   const categoryItems = await db
@@ -63,7 +64,7 @@ const relabelAll = async () => {
 
         const imageBuffer = Buffer.from(imageArrayBuffer);
 
-        if (imageType === "front") {
+        if (imageType === "front" && RELABEL[0]) {
           const frontLabelData = await processFrontLabel(imageBuffer, AI_MODEL);
           if (!frontLabelData) {
             logger.error(
@@ -80,8 +81,8 @@ const relabelAll = async () => {
             })
             .where(eq(foodProductsTable.id, Number(id)));
 
-        } else if (imageType === "nutritional_table") {
-          const nutritionLabelData = await processNutritionLabelV2(imageBuffer, AI_MODEL, AI_LITE_MODEL);
+        } else if (imageType === "nutritional_table" && RELABEL[1]) {
+          const nutritionLabelData = await processNutritionLabelV2(imageBuffer);
           if (!nutritionLabelData) {
             logger.error(
               `Nutrition label data couldn't be processed for product ID: ${id}, image: ${imageKey}`
@@ -112,8 +113,8 @@ const relabelAll = async () => {
             })
             .where(eq(nutritionInfoTable.id, Number(id)));
 
-        } else if (imageType === "ingredients") {
-          const ingredientsLabelData = await processIngredientsLabel(imageBuffer, AI_MODEL);
+        } else if (imageType === "ingredients" && RELABEL[2]) {
+          const ingredientsLabelData = await processIngredientsLabel(imageBuffer);
           if (!ingredientsLabelData) {
             logger.error(
               `Ingredients label data couldn't be processed for product ID: ${id}, image: ${imageKey}`

@@ -29,7 +29,6 @@ export const generateData = async <T>(
       thinkingConfig: model === "gemini-2.5-flash-preview-04-17" ? {
         thinkingBudget: 0,
       } : undefined,
-      temperature: 0.2,
     },
     contents: [
       bufferToGenerativePart(buffer),
