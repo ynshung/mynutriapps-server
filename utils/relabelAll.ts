@@ -111,7 +111,7 @@ const relabelAll = async () => {
               minerals: toValidStringArrayOrNull(nutritionLabelData.minerals),
               uncategorized: toValidStringArrayOrNull(nutritionLabelData.uncategorized),
             })
-            .where(eq(nutritionInfoTable.id, Number(id)));
+            .where(eq(nutritionInfoTable.foodProductId, Number(id)));
 
         } else if (imageType === "ingredients" && RELABEL[2]) {
           const ingredientsLabelData = await processIngredientsLabel(imageBuffer);

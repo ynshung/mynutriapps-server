@@ -74,10 +74,10 @@ const relabelVitaminsAndMinerals = async () => {
         },
       };
 
-      const vitaminData = await generateData<{ vitamins: string[] }>(
+      const vitaminData = await generateData<string[]>(
         AI_MODEL,
         imageBuffer,
-        `List the vitamins that are on the nutritional table.`,
+        `List the vitamins that are on the nutritional table. Available vitamins are: a, b1, b2, b3, b5, b6, b7, b9, b12, c, d, e and k.`,
         vitaminSchema
       );
 
@@ -85,47 +85,31 @@ const relabelVitaminsAndMinerals = async () => {
         await db
           .update(nutritionInfoTable)
           .set({
-            vitamins: toValidStringArrayOrNull(vitaminData.vitamins),
+            vitamins: toValidStringArrayOrNull(vitaminData),
           })
-          .where(eq(nutritionInfoTable.id, Number(id)));
+          .where(eq(nutritionInfoTable.foodProductId, Number(id)));
       }
 
       const mineralSchema: Schema = {
         type: Type.ARRAY,
         items: {
           type: Type.STRING,
-          enum: [
-            "calcium",
-            "chloride",
-            "chromium",
-            "copper",
-            "fluoride",
-            "iodine",
-            "iron",
-            "magnesium",
-            "manganese",
-            "molybdenum",
-            "phosphorus",
-            "potassium",
-            "selenium",
-            "zinc",
-          ],
         },
       };
 
-      const mineralData = await generateData<{ minerals: string[] }>(
+      const mineralData = await generateData<string[]>(
         AI_MODEL,
         imageBuffer,
-        `List the minerals that are on the nutritional table.`,
+        `List the minerals that are on the nutritional table. Available minerals are: calcium, chloride, chromium, copper, fluoride, iodine, iron, magnesium, manganese, molybdenum, phosphorus, potassium, selenium and zinc.`,
         mineralSchema
       );
       if (mineralData) {
         await db
           .update(nutritionInfoTable)
           .set({
-            minerals: toValidStringArrayOrNull(mineralData.minerals),
+            minerals: toValidStringArrayOrNull(mineralData),
           })
-          .where(eq(nutritionInfoTable.id, Number(id)));
+          .where(eq(nutritionInfoTable.foodProductId, Number(id)));
       }
     } catch (error) {
       logger.error(
