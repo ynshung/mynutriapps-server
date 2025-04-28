@@ -104,10 +104,31 @@ const relabelVitaminsAndMinerals = async () => {
         mineralSchema
       );
       if (mineralData) {
+        const validMinerals = [
+          "calcium",
+          "chloride",
+          "chromium",
+          "copper",
+          "fluoride",
+          "iodine",
+          "iron",
+          "magnesium",
+          "manganese",
+          "molybdenum",
+          "phosphorus",
+          "potassium",
+          "selenium",
+          "zinc",
+        ];
+
+        const filteredMineralData = mineralData
+          .map((mineral) => mineral.toLowerCase())
+          .filter((mineral) => validMinerals.includes(mineral));
+        
         await db
           .update(nutritionInfoTable)
           .set({
-            minerals: toValidStringArrayOrNull(mineralData),
+            minerals: toValidStringArrayOrNull(filteredMineralData),
           })
           .where(eq(nutritionInfoTable.foodProductId, Number(id)));
       }
