@@ -18,7 +18,7 @@ export const generateData = async <T>(
   buffer: Buffer<ArrayBufferLike>,
   prompt: string,
   schema: Schema,
-  maxOutputTokens: number = 256
+  maxOutputTokens: number = 512
 ): Promise<T | null> => {
   const result = await genAI.models.generateContent({
     model: model,
@@ -26,9 +26,9 @@ export const generateData = async <T>(
       responseMimeType: "application/json",
       responseSchema: schema,
       maxOutputTokens: maxOutputTokens,
-      thinkingConfig: {
+      thinkingConfig: model === "gemini-2.5-flash-preview-04-17" ? {
         thinkingBudget: 0,
-      }
+      } : undefined,
     },
     contents: [
       bufferToGenerativePart(buffer),

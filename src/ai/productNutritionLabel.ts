@@ -10,7 +10,8 @@ import sharp from "sharp";
 
 export const processNutritionLabelV2 = async (
   nutritionLabelBuffer: Buffer<ArrayBufferLike>,
-  model: string = "gemini-2.0-flash"
+  model = "gemini-2.0-flash",
+  liteModel = "gemini-2.0-flash-lite",
 ) => {
   const resizedBuffer = await sharp(nutritionLabelBuffer)
     .resize(512, 512, {
@@ -26,7 +27,7 @@ export const processNutritionLabelV2 = async (
     perServingAvailable: boolean;
     per100gAvailable: boolean;
   }>(
-    "gemini-2.0-flash-lite",
+    liteModel,
     resizedBuffer,
     "Check the availability of the nutritional table.",
     nutritionInfoAvailableSchema
@@ -72,7 +73,7 @@ export const processNutritionLabelV2 = async (
 
   const [nutritionServingsData, nutritionLabelData, nutritionLabelCategory] = await Promise.all([
     generateData<NutritionInfoServings>(
-      "gemini-2.0-flash-lite",
+      liteModel,
       nutritionLabelBuffer,
       `Determine the servings size, its unit and the total servings based on the image.`,
       nutritionInfoServingsSchema
@@ -84,7 +85,7 @@ export const processNutritionLabelV2 = async (
       nutritionInfoDetailsSchema
     ),
     generateData<NutritionInfoCategory>(
-      "gemini-2.0-flash-lite",
+      liteModel,
       nutritionLabelBuffer,
       `List the vitamins and minerals listed on the nutritional label.`,
       nutritionInfoCategorySchema

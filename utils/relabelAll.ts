@@ -15,6 +15,7 @@ import { asc, eq } from "drizzle-orm";
 
 const START_ID = 0;
 const AI_MODEL = "gemini-2.5-flash-preview-04-17";
+const AI_LITE_MODEL = "gemini-2.0-flash";
 
 const relabelAll = async () => {
   const categoryItems = await db
@@ -80,7 +81,7 @@ const relabelAll = async () => {
             .where(eq(foodProductsTable.id, Number(id)));
 
         } else if (imageType === "nutritional_table") {
-          const nutritionLabelData = await processNutritionLabelV2(imageBuffer, AI_MODEL);
+          const nutritionLabelData = await processNutritionLabelV2(imageBuffer, AI_MODEL, AI_LITE_MODEL);
           if (!nutritionLabelData) {
             logger.error(
               `Nutrition label data couldn't be processed for product ID: ${id}, image: ${imageKey}`
