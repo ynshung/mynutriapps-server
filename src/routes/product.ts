@@ -21,6 +21,7 @@ import {
   uploadProductImages,
 } from "../utils/product";
 import { searchProductsMS, searchSuggestionsMS } from "../utils/minisearch";
+import { getCategoryIdByName } from "../utils/category";
 
 // TODO: Generalize the functions in this file, whether to use req, res directly or not
 
@@ -382,20 +383,11 @@ export const createProduct = async (
   // Save product to database
   return await db.transaction(async (tx) => {
     try {
-      let categoryId: number | undefined;
       // (1) Food Category
       if (!frontLabelData)
         throw new Error("Front label data couldn't be processed");
       if (!frontLabelData.category) frontLabelData.category = "Uncategorized";
-      const categoryQueryResult = await tx
-        .select()
-        .from(foodCategoryTable)
-        .where(eq(foodCategoryTable.name, frontLabelData.category));
-      if (categoryQueryResult.length === 0) {
-        throw new Error("Unexpected error: Category not found");
-      } else {
-        categoryId = categoryQueryResult[0].id;
-      }
+      const categoryId = await getCategoryIdByName(frontLabelData.category, tx);
 
       // (2) Food Product
       let newProductValues: typeof foodProductsTable.$inferInsert = {

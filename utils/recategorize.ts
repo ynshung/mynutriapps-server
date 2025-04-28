@@ -38,10 +38,13 @@ const recategorize = async (categoryID: number = 0) => {
     const imageArrayBuffer = await image.arrayBuffer();
     const imageBuffer = Buffer.from(imageArrayBuffer);
 
-    const frontLabelData = await processFrontLabel(imageBuffer);
+    const frontLabelData = await processFrontLabel(imageBuffer, "gemini-2.5-flash-preview-04-17");
 
-    if (!frontLabelData)
-      throw new Error("Front label data couldn't be processed");
+    if (!frontLabelData) {
+      console.error(`Front label data couldn't be processed for product ID: ${foodProductID}, image: ${imageKey}`);
+      console.log(`View product: https://mna-admin.ynshung.com/dashboard/food-database/${foodProductID}`);
+      continue;
+    }
     if (!frontLabelData.category) frontLabelData.category = "Uncategorized";
     const categoryQueryResult = await db
       .select()
@@ -68,8 +71,8 @@ const recategorize = async (categoryID: number = 0) => {
         `\u001b[1;32mRecategorized ${item.id} ${frontLabelData.name} (${frontLabelData.brand}) to ${frontLabelData.category}\u001b[0m`
       );
     }
-    // await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise((resolve) => setTimeout(resolve, 8000));
   }
 };
 
-recategorize(84)
+recategorize(43)
