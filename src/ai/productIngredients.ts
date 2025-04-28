@@ -9,7 +9,7 @@ export const processIngredientsLabel = async (
   const ingredientsLabelData = await generateData<FoodIngredientDetails>(
     model,
     ingredientsLabelBuffer,
-    "List the ingredients, additives and allergens based on the JSON structure",
+    "List the ingredients, additives and allergens based on the JSON structure, use English language if available",
     ingredientsSchema,
     1024
   );
