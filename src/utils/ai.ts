@@ -26,6 +26,9 @@ export const generateData = async <T>(
       responseMimeType: "application/json",
       responseSchema: schema,
       maxOutputTokens: maxOutputTokens,
+      thinkingConfig: {
+        thinkingBudget: 0,
+      }
     },
     contents: [
       bufferToGenerativePart(buffer),
