@@ -88,6 +88,7 @@ export const foodCategoryTable = pgTable("food_category", {
     onDelete: "set null",
     onUpdate: "cascade",
   }),
+  sequence: integer().notNull().default(0),
 });
 
 // TODO: Setup indexes

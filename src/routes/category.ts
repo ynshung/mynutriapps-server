@@ -18,6 +18,7 @@ export interface CategoryList {
   image: string | null;
 }
 
+// This function is related to web getCategoriesParent
 export const listCategory = async () => {
   const childCategory = aliasedTable(foodCategoryTable, "childCategory");
   const foodProductChildCategory = aliasedTable(
@@ -52,7 +53,7 @@ export const listCategory = async () => {
       eq(imagesTable.id, foodCategoryTable.image)
     )
     .groupBy(foodCategoryTable.id, childCategory.id, imagesTable.id)
-    .orderBy(foodCategoryTable.id);
+    .orderBy(foodCategoryTable.sequence, childCategory.sequence, foodCategoryTable.id, childCategory.id);
 
   const typedQuery = query as (typeof foodCategoryTable.$inferSelect & {
     children:
@@ -64,10 +65,13 @@ export const listCategory = async () => {
   })[];
 
   const addedIDs = new Set<number>();
-  // Sorting by parentCategory to prevent duplication
+  // Sorting by parentCategory and sequence to prevent duplication
   const sortedQuery = typedQuery.sort((a, b) => {
     if (a.parentCategory === b.parentCategory) {
-      return a.id - b.id;
+      if (a.sequence === b.sequence) {
+        return a.id - b.id;
+      }
+      return a.sequence - b.sequence;
     }
     return (a.parentCategory ?? 0) - (b.parentCategory ?? 0);
   });
