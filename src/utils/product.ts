@@ -269,9 +269,38 @@ export const editProductData = async (
     })
     .where(eq(foodProductsTable.id, newId));
 
-  await tx
-    .update(nutritionInfoTable)
-    .set({
+  const existingNutritionInfo = await tx
+    .select()
+    .from(nutritionInfoTable)
+    .where(eq(nutritionInfoTable.foodProductId, newId));
+
+  if (existingNutritionInfo.length > 0) {
+    await tx
+      .update(nutritionInfoTable)
+      .set({
+        servingSize: toStrOrNull(newProduct.servingSize),
+        servingSizeUnit: newProduct.servingSizeUnit,
+        servingSizePerUnit: toStrOrNull(newProduct.servingSizePerUnit),
+        calories: toStrOrNull(newProduct.calories),
+        fat: toStrOrNull(newProduct.fat),
+        carbs: toStrOrNull(newProduct.carbs),
+        protein: toStrOrNull(newProduct.protein),
+        sugar: toStrOrNull(newProduct.sugar),
+        monounsaturatedFat: toStrOrNull(newProduct.monounsaturatedFat),
+        polyunsaturatedFat: toStrOrNull(newProduct.polyunsaturatedFat),
+        saturatedFat: toStrOrNull(newProduct.saturatedFat),
+        transFat: toStrOrNull(newProduct.transFat),
+        cholesterol: toStrOrNull(newProduct.cholesterol),
+        sodium: toStrOrNull(newProduct.sodium),
+        fiber: toStrOrNull(newProduct.fiber),
+        vitamins: toValidStringArrayOrNull(newProduct.vitamins),
+        minerals: toValidStringArrayOrNull(newProduct.minerals),
+        uncategorized: toValidStringArrayOrNull(newProduct.uncategorized),
+      })
+      .where(eq(nutritionInfoTable.foodProductId, newId));
+  } else {
+    await tx.insert(nutritionInfoTable).values({
+      foodProductId: newId,
       servingSize: toStrOrNull(newProduct.servingSize),
       servingSizeUnit: newProduct.servingSizeUnit,
       servingSizePerUnit: toStrOrNull(newProduct.servingSizePerUnit),
@@ -290,8 +319,8 @@ export const editProductData = async (
       vitamins: toValidStringArrayOrNull(newProduct.vitamins),
       minerals: toValidStringArrayOrNull(newProduct.minerals),
       uncategorized: toValidStringArrayOrNull(newProduct.uncategorized),
-    })
-    .where(eq(nutritionInfoTable.foodProductId, newId));
+    });
+  }
 };
 
 /**
