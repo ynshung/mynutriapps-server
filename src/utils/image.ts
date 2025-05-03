@@ -9,7 +9,7 @@ const resizeImage = async (image: Buffer) => {
   const { width, height } = await sharp(image).metadata();
   const resizeOptions =
     width && height && (width > 2000 || height > 2000) ? { width: 2000 } : {};
-  return sharp(image).resize(resizeOptions).jpeg({ quality: 50 }).toBuffer();
+  return sharp(image).resize(resizeOptions).webp({ quality: 75 }).toBuffer();
 };
 
 const uploadToS3 = async (key: string, buffer: Buffer, mimetype: string) => {
