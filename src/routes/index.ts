@@ -414,12 +414,14 @@ router.get("/api/v1/popular", optionalAuthMiddleware, async (req, res) => {
 // TODO: auth middleware
 router.post(
   "/api/v1/product/create",
+  authMiddleware,
   upload.fields([
     { name: "front_label", maxCount: 1 },
     { name: "nutrition_label", maxCount: 1 },
     { name: "ingredients", maxCount: 1 },
   ]),
   async (req, res) => {
+    const { userID } = req;
     const images = req.files as
       | { [fieldname: string]: Express.Multer.File[] }
       | undefined;
@@ -436,7 +438,6 @@ router.post(
     const nutritionLabel = images["nutrition_label"][0];
     const ingredients = images["ingredients"][0];
 
-    const userID = parseInt(req.body.user_id);
     const barcode = req.body.barcode;
 
     if (!barcode) {
@@ -447,15 +448,7 @@ router.post(
       return;
     }
 
-    if (isNaN(userID)) {
-      res.status(400).json({
-        status: "error",
-        message: "User UUID is required",
-      });
-      return;
-    }
-
-    const result = await createProduct(barcode, userID, {
+    const result = await createProduct(barcode, userID ?? 0, {
       frontLabel,
       nutritionLabel,
       ingredients,
