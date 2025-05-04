@@ -20,81 +20,38 @@ export interface CategoryList {
 
 // This function is related to web getCategoriesParent
 export const listCategory = async () => {
-  const childCategory = aliasedTable(foodCategoryTable, "childCategory");
-  const foodProductChildCategory = aliasedTable(
-    foodProductsTable,
-    "foodProductChildCategory"
-  );
   const query = await db
     .select({
       ...getTableColumns(foodCategoryTable),
-      children: {
-        ...getTableColumns(childCategory),
-        foodProductCount: count(foodProductChildCategory.id),
-      },
-      foodProductCount: count(foodProductsTable.id),
-      image: imagesTable.imageKey,
+      imageKey: imagesTable.imageKey,
+      foodProductCount: count(foodProductsTable.id), // counting product IDs
     })
     .from(foodCategoryTable)
-    .leftJoin(
-      childCategory,
-      eq(childCategory.parentCategory, foodCategoryTable.id)
-    )
-    .leftJoin(
-      foodProductChildCategory,
-      eq(foodProductChildCategory.foodCategoryId, childCategory.id)
-    )
     .leftJoin(
       foodProductsTable,
       eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
     )
-    .leftJoin(
-      imagesTable,
-      eq(imagesTable.id, foodCategoryTable.image)
-    )
-    .groupBy(foodCategoryTable.id, childCategory.id, imagesTable.id)
-    .orderBy(foodCategoryTable.sequence, childCategory.sequence, foodCategoryTable.id, childCategory.id);
+    .leftJoin(imagesTable, eq(foodCategoryTable.image, imagesTable.id))
+    .groupBy(foodCategoryTable.id, imagesTable.imageKey)
+    .orderBy(foodCategoryTable.sequence, foodCategoryTable.id);
 
   const typedQuery = query as (typeof foodCategoryTable.$inferSelect & {
-    children:
-      | (typeof foodCategoryTable.$inferSelect & {
-          foodProductCount: number;
-        })
-      | null;
+    imageKey: string | null;
     foodProductCount: number;
   })[];
 
-  const addedIDs = new Set<number>();
-  // Sorting by parentCategory and sequence to prevent duplication
-  const sortedQuery = typedQuery.sort((a, b) => {
-    if (a.parentCategory === b.parentCategory) {
-      if (a.sequence === b.sequence) {
-        return a.id - b.id;
-      }
-      return a.sequence - b.sequence;
-    }
-    return (a.parentCategory ?? 0) - (b.parentCategory ?? 0);
-  });
-  const aggregated = sortedQuery.reduce<CategoryList[]>((acc, curr) => {
-    const existingParent = acc.find((item) => item.id === curr.id);
+  const mainCategories = typedQuery.filter((category) => category.parentCategory === null);
 
-    if (existingParent && curr.children) {
-      existingParent.children.push(curr.children);
-      addedIDs.add(curr.id);
-      addedIDs.add(curr.children.id);
-    } else if (!addedIDs.has(curr.id)) {
-      acc.push({
-        ...curr,
-        children: curr.children ? [curr.children] : [],
-        foodProductCount: curr.foodProductCount,
-      });
-      addedIDs.add(curr.id);
-      if (curr.children) {
-        addedIDs.add(curr.children.id);
-      }
-    }
-    return acc;
-  }, []);
+  // Aggregate main categories and their children
+  const aggregated = mainCategories.map((mainCategory) => {
+    const children = typedQuery
+      .filter((category) => category.parentCategory === mainCategory.id);
+
+    return {
+      ...mainCategory,
+      children,
+    };
+  });
 
   return aggregated;
 };
