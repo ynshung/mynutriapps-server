@@ -305,6 +305,7 @@ export const listRecentlyViewedProducts = async (
       image: imagesTable.imageKey,
       verified: foodProductsTable.verified,
       createdAt: foodProductsTable.createdAt,
+      favorite: sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`,
     })
     .from(subquery)
     .orderBy(desc(subquery.clickedAt))
@@ -321,6 +322,13 @@ export const listRecentlyViewedProducts = async (
       eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
     )
     .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
+    .leftJoin(
+      userProductFavoritesTable,
+      and(
+        eq(userProductFavoritesTable.foodProductId, foodProductsTable.id),
+        eq(userProductFavoritesTable.userID, id)
+      )
+    )
     .where(eq(imageFoodProductsTable.type, "front"))
     .limit(limit)
     .offset((page - 1) * limit);
