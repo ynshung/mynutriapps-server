@@ -45,7 +45,7 @@ export type ProductCardType = {
   brand: string | null;
   category: string;
   verified: boolean | null;
-  image: string | null;
+  images: Record<string, string>;
   favorite?: boolean;
   createdAt?: Date; // might be missing on some query
 };

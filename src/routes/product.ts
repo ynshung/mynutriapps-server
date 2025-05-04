@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "@src/db";
-import { and, arrayOverlaps, desc, eq, getTableColumns, gt, sql } from "drizzle-orm";
+import { and, arrayOverlaps, desc, eq, gt, sql } from "drizzle-orm";
 import {
   foodProductsTable,
   imageFoodProductsTable,
@@ -22,25 +22,38 @@ import {
 } from "../utils/product";
 import { searchProductsMS, searchSuggestionsMS } from "../utils/minisearch";
 import { getCategoryIdByName } from "../utils/category";
+import { PgColumn, SelectedFields } from "drizzle-orm/pg-core";
 
 // TODO: Generalize the functions in this file, whether to use req, res directly or not
 
-export const listProducts = async (req: Request, res: Response) => {
-  const { userID } = req;
-  const { page = 1, limit = 10 } = req.query;
-
-  let data: ProductCardType[];
-
-  const subquery = db
+const productsQuery = ({
+  userID,
+  additionalGroupBy = [],
+  additionalFields = {},
+}: {
+  userID?: number;
+  additionalGroupBy?: PgColumn[];
+  additionalFields?: SelectedFields;
+}) => {
+  return db
     .select({
       id: foodProductsTable.id,
-      name: sql<string>`${foodProductsTable.name}`.as("product_name"),
       barcode: foodProductsTable.barcode,
+      name: sql<string>`${foodProductsTable.name}`.as("product_name"),
       brand: foodProductsTable.brand,
       category: sql<string>`${foodCategoryTable.name}`.as("category_name"),
-      image: imagesTable.imageKey,
+      images: sql<
+        Record<string, string>
+      >`json_object_agg(${imageFoodProductsTable.type}, ${imagesTable.imageKey})`.as(
+        "images"
+      ),
       verified: foodProductsTable.verified,
       createdAt: foodProductsTable.createdAt,
+      favorite:
+        sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`.as(
+          "favorite"
+        ),
+      ...additionalFields,
     })
     .from(foodProductsTable)
     .innerJoin(
@@ -52,179 +65,84 @@ export const listProducts = async (req: Request, res: Response) => {
       foodCategoryTable,
       eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
     )
-    .where(eq(imageFoodProductsTable.type, "front"))
+    .leftJoin(
+      userProductFavoritesTable,
+      and(
+        eq(userProductFavoritesTable.foodProductId, foodProductsTable.id),
+        userID ? eq(userProductFavoritesTable.userID, userID) : sql`TRUE`
+      )
+    )
+    .groupBy(
+      foodProductsTable.id,
+      foodProductsTable.name,
+      foodProductsTable.barcode,
+      foodProductsTable.brand,
+      foodCategoryTable.name,
+      foodProductsTable.verified,
+      foodProductsTable.createdAt,
+      userProductFavoritesTable.foodProductId,
+      ...additionalGroupBy
+    );
+};
+
+export const listProducts = async (req: Request, res: Response) => {
+  const { userID } = req;
+  const { page = 1, limit = 10 } = req.query;
+
+  const data: ProductCardType[] = await productsQuery({
+    userID,
+  })
     .orderBy(desc(foodProductsTable.createdAt))
     .limit(Number(limit))
-    .offset((Number(page) - 1) * Number(limit))
-    .as("subquery");
-
-  if (userID) {
-    data = await db
-      .select({
-        id: subquery.id,
-        name: subquery.name,
-        barcode: subquery.barcode,
-        brand: subquery.brand,
-        category: subquery.category,
-        image: subquery.image,
-        verified: subquery.verified,
-        createdAt: subquery.createdAt,
-        favorite: sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`,
-      })
-      .from(subquery)
-      .leftJoin(
-        userProductFavoritesTable,
-        and(
-          eq(userProductFavoritesTable.foodProductId, subquery.id),
-          eq(userProductFavoritesTable.userID, userID)
-        )
-      )
-      .orderBy(desc(subquery.createdAt));
-  } else {
-    data = await db.select().from(subquery);
-  }
+    .offset((Number(page) - 1) * Number(limit));
 
   res.json(data);
 };
 
-export const listPopularProducts = async (page: number, limit: number, userID?: number) => {
-  let data: ProductCardType[];
-
-  const products = db
-    .select({
-      ...getTableColumns(foodProductsTable),
-      clickCount: db.$count(userProductClicksTable, eq(userProductClicksTable.foodProductId, foodProductsTable.id)).as("click_count"),
-    })
-    .from(foodProductsTable)
-    .as("products");
-  
-  const subquery = db
-    .select({
-      id: products.id,
-      name: sql<string>`${products.name}`.as("product_name"),
-      barcode: products.barcode,
-      brand: products.brand,
-      category: sql<string>`${foodCategoryTable.name}`.as("category_name"),
-      image: imagesTable.imageKey,
-      verified: products.verified,
-      createdAt: products.createdAt,
-      clickCount: products.clickCount,
-    })
-    .from(products)
-    .innerJoin(
-      imageFoodProductsTable,
-      eq(imageFoodProductsTable.foodProductId, products.id)
-    )
-    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
-    .innerJoin(
-      foodCategoryTable,
-      eq(products.foodCategoryId, foodCategoryTable.id)
-    )
-    .where(and(eq(imageFoodProductsTable.type, "front"), gt(products.clickCount, 0)))
-    .orderBy(desc(sql`click_count`))
-    .limit(Number(limit))
-    .offset((Number(page) - 1) * Number(limit))
-    .as("subquery");
-
-  if (userID) {
-    data = await db
-      .select({
-        id: subquery.id,
-        name: subquery.name,
-        barcode: subquery.barcode,
-        brand: subquery.brand,
-        category: subquery.category,
-        image: subquery.image,
-        verified: subquery.verified,
-        createdAt: subquery.createdAt,
-        clickCount: subquery.clickCount,  
-        favorite: sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`,
-      })
-      .from(subquery)
-      .leftJoin(
-        userProductFavoritesTable,
-        and(
-          eq(userProductFavoritesTable.foodProductId, subquery.id),
-          eq(userProductFavoritesTable.userID, userID)
+export const listPopularProducts = async (
+  page: number,
+  limit: number,
+  userID?: number
+) => {
+  const products = await productsQuery({
+    userID,
+    additionalFields: {
+      clickCount: db
+        .$count(
+          userProductClicksTable,
+          eq(userProductClicksTable.foodProductId, foodProductsTable.id)
         )
-      )
-      .orderBy(desc(sql`click_count`));
-  } else {
-    data = await db.select().from(subquery);
-  }
-  
-  return data;
+        .as("click_count"),
+    },
+  })
+    // @ts-expect-error: additionalFields is not typed
+    .having((fields) => gt(fields.clickCount as number, 0))
+    .orderBy(desc(sql`"click_count"`))
+    .limit(Number(limit))
+    .offset((Number(page) - 1) * Number(limit));
+
+  return products;
 };
 
 export const searchBarcode = async (req: Request, res: Response) => {
   const barcode = req.query.q as string;
   const { userID } = req;
 
-  let data: ProductCardType;
-
-  const subquery = db
-    .selectDistinctOn([foodProductsTable.id, foodProductsTable.createdAt], {
-      id: foodProductsTable.id,
-      name: sql<string>`${foodProductsTable.name}`.as("product_name"),
-      barcode: foodProductsTable.barcode,
-      brand: foodProductsTable.brand,
-      category: sql<string>`${foodCategoryTable.name}`.as("category_name"),
-      image: imagesTable.imageKey,
-      verified: foodProductsTable.verified,
-      createdAt: foodProductsTable.createdAt,
-    })
-    .from(foodProductsTable)
-    .innerJoin(
-      imageFoodProductsTable,
-      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
-    )
-    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
-    .innerJoin(
-      foodCategoryTable,
-      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
-    )
-    .where(
-      and(
-        arrayOverlaps(foodProductsTable.barcode, [barcode]),
-        eq(imageFoodProductsTable.type, "front")
-      )
-    )
+  const data = await productsQuery({
+    userID,
+  })
     .orderBy(desc(foodProductsTable.createdAt))
-    .as("subquery");
+    .where(arrayOverlaps(foodProductsTable.barcode, [barcode]))
+    .limit(1);
 
-  if (userID) {
-    const query = await db
-      .select({
-        id: subquery.id,
-        name: subquery.name,
-        barcode: subquery.barcode,
-        brand: subquery.brand,
-        category: subquery.category,
-        image: subquery.image,
-        verified: subquery.verified,
-        createdAt: subquery.createdAt,
-        favorite: sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`,
-      })
-      .from(subquery)
-      .leftJoin(
-        userProductFavoritesTable,
-        and(
-          eq(userProductFavoritesTable.foodProductId, subquery.id),
-          eq(userProductFavoritesTable.userID, userID)
-        )
-      )
-      .orderBy(desc(subquery.id));
-    data = query[0];
-  } else {
-    const query = await db.select().from(subquery);
-    data = query[0];
-  }
+  const product: ProductCardType | undefined =
+    data.length > 0 ? data[0] : undefined;
 
-  if (!data) {
+  if (!product) {
     res.status(404).json({ message: "No product found" });
   }
 
-  res.json(data);
+  res.json(product);
 };
 
 export const searchProducts = async (req: Request, res: Response) => {
@@ -246,37 +164,12 @@ export const searchSuggestions = async (req: Request, res: Response) => {
 };
 
 export const listFavoriteProducts = async (userID: number) => {
-  const favorites = await db
-    .select({
-      id: foodProductsTable.id,
-      name: foodProductsTable.name,
-      barcode: foodProductsTable.barcode,
-      brand: foodProductsTable.brand,
-      category: foodCategoryTable.name,
-      image: imagesTable.imageKey,
-      verified: foodProductsTable.verified,
-    })
-    .from(userProductFavoritesTable)
-    .where(
-      and(
-        eq(userProductFavoritesTable.userID, userID),
-        eq(imageFoodProductsTable.type, "front")
-      )
-    )
-    .innerJoin(
-      foodProductsTable,
-      eq(userProductFavoritesTable.foodProductId, foodProductsTable.id)
-    )
-    .innerJoin(
-      foodCategoryTable,
-      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
-    )
-    .innerJoin(
-      imageFoodProductsTable,
-      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
-    )
-    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
-    .orderBy(desc(userProductFavoritesTable.favoritedAt));
+  const favorites = productsQuery({
+    userID,
+    additionalGroupBy: [userProductFavoritesTable.favoritedAt],
+  })
+    .orderBy(desc(userProductFavoritesTable.favoritedAt))
+    .where(eq(userProductFavoritesTable.userID, userID));
 
   return favorites;
 };
@@ -296,40 +189,12 @@ export const listRecentlyViewedProducts = async (
     )
     .as("user");
 
-  const products = await db
-    .select({
-      id: foodProductsTable.id,
-      name: foodProductsTable.name,
-      brand: foodProductsTable.brand,
-      category: foodCategoryTable.name,
-      image: imagesTable.imageKey,
-      verified: foodProductsTable.verified,
-      createdAt: foodProductsTable.createdAt,
-      favorite: sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`,
-    })
-    .from(subquery)
+  const products: ProductCardType[] = await productsQuery({
+    userID: id,
+    additionalGroupBy: [subquery.clickedAt],
+  })
+    .innerJoin(subquery, eq(subquery.foodProductId, foodProductsTable.id))
     .orderBy(desc(subquery.clickedAt))
-    .innerJoin(
-      foodProductsTable,
-      eq(subquery.foodProductId, foodProductsTable.id)
-    )
-    .innerJoin(
-      foodCategoryTable,
-      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
-    )
-    .innerJoin(
-      imageFoodProductsTable,
-      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
-    )
-    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
-    .leftJoin(
-      userProductFavoritesTable,
-      and(
-        eq(userProductFavoritesTable.foodProductId, foodProductsTable.id),
-        eq(userProductFavoritesTable.userID, id)
-      )
-    )
-    .where(eq(imageFoodProductsTable.type, "front"))
     .limit(limit)
     .offset((page - 1) * limit);
 
