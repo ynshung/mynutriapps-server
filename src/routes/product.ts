@@ -26,7 +26,7 @@ import { PgColumn, SelectedFields } from "drizzle-orm/pg-core";
 
 // TODO: Generalize the functions in this file, whether to use req, res directly or not
 
-const productsQuery = ({
+export const productsQuery = ({
   userID,
   additionalGroupBy = [],
   additionalFields = {},
