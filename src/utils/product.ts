@@ -17,6 +17,7 @@ import { uploadImage } from "./image";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { db } from "../db";
 import { and, desc, eq, sql } from "drizzle-orm";
+import { processUnvectorizedImages } from "./frontImageVector";
 
 export const getProductData = async (id: number, userId?: number) => {
   const data = await db
@@ -248,6 +249,7 @@ export const uploadProductImages = async (
       }
     })
   );
+  processUnvectorizedImages();
 };
 
 export const editProductData = async (

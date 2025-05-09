@@ -50,6 +50,15 @@ const fetchImageFromS3 = async (imageKey: string) => {
   return imageBlob;
 };
 
+const checkAIServerStatus = async () => {
+  const response = await fetch(process.env.BACKEND_AI_HOST + "/status");
+  if (!response.ok) {
+    return false;
+  }
+  const data = await response.json();
+  return data.status === "ok";
+};
+
 export const processImage = async (imageBlob: Blob) => {
   const formData = new FormData();
   formData.append("image", imageBlob, "image.jpg");
@@ -70,6 +79,11 @@ export const processImage = async (imageBlob: Blob) => {
 };
 
 export const processUnvectorizedImages = async () => {
+  if (!(await checkAIServerStatus())) {
+    console.warn("AI server is not reachable");
+    return;
+  }
+
   const data = await listFoodProductFrontImageUnvectorized();
   if (!data || data.length === 0) {
     console.log("No images to process");
@@ -98,6 +112,8 @@ export const processUnvectorizedImages = async () => {
 
     console.log("Updated embedding for image:", imageKey);
   }
+  console.log(data.length, "images processed");
+  return data.length;
 };
 
 export const findSimilarFoodProduct = async (productID: number) => {
