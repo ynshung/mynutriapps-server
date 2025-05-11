@@ -26,6 +26,10 @@ export type ServerFoodProduct = {
 export type ServerFoodProductDetails = ServerFoodProduct & {
   nutrition_info: NutritionInfoDB | null;
   isUserFavorite: boolean;
+  quartiles: Record<
+    keyof NutritionInfoDB | "additives",
+    number | undefined
+  > | undefined;
 };
 
 export interface NewFoodProductFormData
