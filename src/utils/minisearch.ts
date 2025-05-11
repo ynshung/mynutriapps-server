@@ -4,10 +4,10 @@ import {
   foodCategoryTable,
   foodProductsTable,
   imageFoodProductsTable,
-  imagesTable,
 } from "../db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import MiniSearch from "minisearch";
+import { productsQuery } from "../routes/product";
 
 // TODO: Optimize constant fetching from database
 const getProductMS = async (): Promise<ProductSearchResult[]> => {
@@ -32,7 +32,8 @@ const getProductMS = async (): Promise<ProductSearchResult[]> => {
 };
 
 export const searchProductsMS = async (
-  query: string
+  query: string,
+  userID?: number,
 ): Promise<ProductCardType[]> => {
   const miniSearch = new MiniSearch({
     fields: ["name", "brand"],
@@ -47,33 +48,16 @@ export const searchProductsMS = async (
   miniSearch.addAll(data);
   const result = miniSearch.search(query);
   const idList = result.map((r) => r.id);
-  const dbQuery = await db
-    .select({
-      id: foodProductsTable.id,
-      name: sql<string>`${foodProductsTable.name}`.as("product_name"),
-      barcode: foodProductsTable.barcode,
-      brand: foodProductsTable.brand,
-      category: sql<string>`${foodCategoryTable.name}`.as("category_name"),
-      image: imagesTable.imageKey,
-      verified: foodProductsTable.verified,
-    })
-    .from(foodProductsTable)
-    .innerJoin(
-      imageFoodProductsTable,
-      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
-    )
-    .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
-    .innerJoin(
-      foodCategoryTable,
-      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
-    )
+  const dbQuery = await productsQuery({
+    userID,
+  })
     .where(
       and(
         inArray(foodProductsTable.id, idList),
         eq(imageFoodProductsTable.type, "front")
       )
     )
-    .orderBy(sql`ARRAY_POSITION(ARRAY[${sql.join(idList, sql`, `)}]::INTEGER[], ${foodProductsTable.id})`)
+    .orderBy(sql`ARRAY_POSITION(ARRAY[${sql.join(idList, sql`, `)}]::INTEGER[], ${foodProductsTable.id})`);
 
   return dbQuery;
 };

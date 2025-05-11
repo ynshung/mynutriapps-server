@@ -147,7 +147,7 @@ export const searchBarcode = async (req: Request, res: Response) => {
 
 export const searchProducts = async (req: Request, res: Response) => {
   const query = req.query.q as string;
-  const result = await searchProductsMS(query);
+  const result = await searchProductsMS(query, req.userID);
   res.json(result.slice(0, 100));
 
   await db.insert(userSearchHistoryTable).values({
