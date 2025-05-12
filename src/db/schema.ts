@@ -25,7 +25,7 @@ export const goalEnum = pgEnum("goal", [
   "improveHealth",
   "loseWeight",
   "improvePerformance",
-  "none",
+  "chronicDisease",
 ]);
 
 export const foodProductImageTypes = pgEnum("food_product_image_types", [
