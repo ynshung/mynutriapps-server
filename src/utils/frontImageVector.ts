@@ -148,6 +148,29 @@ export const findSimilarFoodProduct = async (productID: number) => {
     return null;
   }
 
+  return await findSimilarFoodProductByVector({
+    embedding,
+    category,
+    limit: 8,
+    excludeProductID: productID
+  });
+};
+
+export const findSimilarFoodProductByVector = async ({
+  embedding,
+  category,
+  limit = 10,
+  page = 1,
+  excludeProductID,
+  similarityCondition = 0.5,
+}: {
+  embedding: number[];
+  category: number;
+  limit?: number;
+  page?: number;
+  excludeProductID?: number;
+  similarityCondition?: number;
+}) => {
   const similarity = sql<number>`1 - (${cosineDistance(
     imagesTable.embedding,
     embedding
@@ -165,16 +188,19 @@ export const findSimilarFoodProduct = async (productID: number) => {
     )
     .where(
       and(
-        ne(imageFoodProductsTable.foodProductId, productID),
+        excludeProductID
+          ? ne(imageFoodProductsTable.foodProductId, excludeProductID)
+          : sql`TRUE`,
         eq(foodProductsTable.foodCategoryId, category),
         eq(imageFoodProductsTable.type, "front"),
         isNotNull(imagesTable.embedding),
-        gt(similarity, 0.5)
+        gt(similarity, similarityCondition),
       )
     )
     .innerJoin(imagesTable, eq(imagesTable.id, imageFoodProductsTable.imageId))
     .orderBy((t) => desc(t.similarity))
-    .limit(8);
+    .limit(limit)
+    .offset((page - 1) * limit);
 
   return similarProducts;
 };

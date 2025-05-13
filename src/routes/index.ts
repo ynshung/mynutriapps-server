@@ -9,6 +9,7 @@ import {
   searchProducts,
   searchSuggestions,
   listPopularProducts,
+  productsQuery,
 } from "./product";
 import {
   getCategoryDetails,
@@ -25,11 +26,12 @@ import {
 } from "../middleware/auth";
 import { db } from "../db";
 import {
+  foodProductsTable,
   imagesTable,
   userProductFavoritesTable,
   usersTable,
 } from "../db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { adminMiddleware } from "../middleware/admin";
 import cors from "cors";
 import { NewFoodProductFormData } from "@/types";
@@ -44,6 +46,7 @@ import { uploadImage } from "../utils/image";
 import sharp from "sharp";
 import { adminInferenceProduct } from "./admin";
 import { findSimilarFoodProduct } from "../utils/frontImageVector";
+import { getHistoryRecommendation } from "../utils/recommendation";
 
 const router = Router();
 
@@ -249,6 +252,32 @@ router.get(
     res.status(200).json(data);
   }
 );
+router.get("/api/v1/user/recommendation", authMiddleware, async (req, res) => {
+  const { userID } = req;
+  const { page = 1, limit = 10 } = req.query;
+  if (!userID) {
+    res.status(403).json({
+      status: "error",
+      message: "Invalid account",
+    });
+    return;
+  }
+  const recommendations = await getHistoryRecommendation(userID);
+  if (!recommendations) {
+    res.status(200).json([]);
+    return;
+  }
+
+  const data = await productsQuery({userID})
+    .where(
+      inArray(foodProductsTable.id, recommendations.map((item) => item.id))
+    )
+    .orderBy(sql`ARRAY_POSITION(ARRAY[${sql.join(recommendations.map((item) => item.id), sql`, `)}]::INTEGER[], ${foodProductsTable.id})`)
+    .limit(Number(limit))
+    .offset((Number(page) - 1) * Number(limit));
+
+  res.status(200).json(data);
+});
 
 router.get("/api/v1/search-barcode", optionalAuthMiddleware, searchBarcode);
 
