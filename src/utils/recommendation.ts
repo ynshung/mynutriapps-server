@@ -8,6 +8,7 @@ import {
 } from "../db/schema";
 import { findSimilarFoodProductByVector } from "./frontImageVector";
 
+// TODO: Filter by healthiness, check behaviour in new accounts
 export const getHistoryRecommendation = async (userID: number) => {
   const data = await db
     .select({
