@@ -68,7 +68,9 @@ export const evaluateNutritionQuartiles: (
 
       if (itemIndex !== -1) {
         for (let q = 1; q <= quartile; q++) {
-          if (itemIndex < quartileSize * q) {
+          if (key === "transFat" && sortedItems[itemIndex].value < 0.01) {
+            quartiles[key] = 1;
+          } else if (itemIndex < quartileSize * q) {
             quartiles[key] = q;
             break;
           }
@@ -115,8 +117,3 @@ export const evaluateNutritionQuartiles: (
 
   return result;
 };
-
-(async () => {
-  const categoryID = 42;
-  console.log(await evaluateNutritionQuartiles(categoryID));
-})();
