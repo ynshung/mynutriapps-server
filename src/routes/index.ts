@@ -36,6 +36,7 @@ import { adminMiddleware } from "../middleware/admin";
 import cors from "cors";
 import { NewFoodProductFormData } from "@/types";
 import {
+  checkRemovedImages,
   createNewProduct,
   editProductData,
   getProductCard,
@@ -629,6 +630,7 @@ router.post(
         0
       );
     }
+    checkRemovedImages(productID, nutritionInfo, images);
 
     res.status(200).json({
       status: "success",

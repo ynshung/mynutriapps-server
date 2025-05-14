@@ -212,6 +212,56 @@ export const uploadProductImages = async (
   processUnvectorizedImages();
 };
 
+export const checkRemovedImages = async (
+  productId: number,
+  formData: NewFoodProductFormData,
+  images: { [fieldname: string]: Express.Multer.File[] } | undefined,
+) => {
+  const { front_label_url, nutrition_label_url, ingredients_url } = formData;
+
+  const existingImages = await db
+    .select()
+    .from(imageFoodProductsTable)
+    .where(eq(imageFoodProductsTable.foodProductId, productId));
+    
+  const types = ["front", "nutritional_table", "ingredients"];
+  for (const type of types) {
+    const formDataUrl =
+      type === "front"
+        ? front_label_url
+        : type === "nutritional_table"
+        ? nutrition_label_url
+        : ingredients_url;
+
+    const imageExistsInFormData = formDataUrl && formDataUrl.trim() !== "";
+    const imageExistsInUploadedImages =
+      type === "front"
+      ? images?.front_label?.[0]
+      : type === "nutritional_table"
+      ? images?.nutrition_label?.[0]
+      : type === "ingredients"
+      ? images?.ingredients?.[0]
+      : false;
+
+    if (!imageExistsInFormData && !imageExistsInUploadedImages) {
+      const existingImage = existingImages.find(
+        (img) => img.type === type
+      );
+      if (existingImage) {
+        await db
+          .delete(imageFoodProductsTable)
+          .where(
+            and(
+              eq(imageFoodProductsTable.foodProductId, existingImage.foodProductId),
+              eq(imageFoodProductsTable.imageId, existingImage.imageId),
+              eq(imageFoodProductsTable.type, existingImage.type)
+            )
+          );
+      }
+    }
+  }
+}
+
 export const editProductData = async (
   newId: number,
   newProduct: NewFoodProductFormData,
