@@ -40,6 +40,9 @@ export interface NewFoodProductFormData
     FoodIngredientDetails {
       barcode: string[] | string;
       verified: string
+      front_label_url?: string;
+      nutrition_label_url?: string;
+      ingredients_url?: string;
     }
 
 // For product card
