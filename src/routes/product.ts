@@ -9,6 +9,8 @@ import {
   userProductClicksTable,
   userProductFavoritesTable,
   userSearchHistoryTable,
+  usersTable,
+  ProductScore,
 } from "@src/db/schema";
 import { ProductCardType } from "@/types";
 import { logger } from "@src/utils/logger";
@@ -53,6 +55,7 @@ export const productsQuery = ({
         sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`.as(
           "favorite"
         ),
+      quartile: sql<ProductScore | null>`(${foodProductsTable.score} -> ${usersTable.goal ?? "improveHealth"}::text)`,
       ...additionalFields,
     })
     .from(foodProductsTable)
@@ -72,6 +75,10 @@ export const productsQuery = ({
         userID ? eq(userProductFavoritesTable.userID, userID) : sql`TRUE`
       )
     )
+    .leftJoin(
+      usersTable,
+      eq(usersTable.id, userID ?? -1)
+    )
     .groupBy(
       foodProductsTable.id,
       foodProductsTable.name,
@@ -81,6 +88,7 @@ export const productsQuery = ({
       foodProductsTable.verified,
       foodProductsTable.createdAt,
       userProductFavoritesTable.foodProductId,
+      usersTable.goal,
       ...additionalGroupBy
     );
 };

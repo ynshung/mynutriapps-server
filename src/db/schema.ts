@@ -1,4 +1,4 @@
-import { AnyPgColumn, boolean, date, index, vector } from "drizzle-orm/pg-core";
+import { AnyPgColumn, boolean, date, index, jsonb, vector } from "drizzle-orm/pg-core";
 import {
   integer,
   numeric,
@@ -21,12 +21,16 @@ export const activityLevelEnum = pgEnum("activity_level", [
   "extremelyActive",
 ]);
 
-export const goalEnum = pgEnum("goal", [
+const goalValues = [
   "improveHealth",
   "loseWeight",
   "improvePerformance",
   "chronicDisease",
-]);
+] as const;
+
+export type GoalType = typeof goalValues[number];
+
+export const goalEnum = pgEnum("goal", goalValues);
 
 export const foodProductImageTypes = pgEnum("food_product_image_types", [
   "front",
@@ -34,6 +38,13 @@ export const foodProductImageTypes = pgEnum("food_product_image_types", [
   "ingredients",
   "other",
 ]);
+
+export type ProductScore = {
+  score?: number;
+  scoreBreakdown?: Record<string, number>;
+  total: number;
+  quartile?: number;
+}
 
 export const usersTable = pgTable("users", {
   id: serial().primaryKey(),
@@ -113,6 +124,10 @@ export const foodProductsTable = pgTable("food_products", {
     }),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
+  
+  score: jsonb().$type<{
+    [key in GoalType]?: ProductScore
+  }>(),
 
   createdBy: integer()
     .notNull()

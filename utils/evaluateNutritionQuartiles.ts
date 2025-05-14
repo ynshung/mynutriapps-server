@@ -3,7 +3,7 @@ import { foodProductsTable, nutritionInfoTable } from "@/src/db/schema";
 import { NutritionInfoDB } from "@/types";
 import { and, eq, getTableColumns } from "drizzle-orm";
 
-const NUTRITION_FACT_KEYS: (keyof NutritionInfoDB)[] = [
+export const NUTRITION_FACT_KEYS: (keyof NutritionInfoDB)[] = [
   "calories",
   "fat",
   "protein",
@@ -17,6 +17,8 @@ const NUTRITION_FACT_KEYS: (keyof NutritionInfoDB)[] = [
   "saturatedFat",
   "transFat",
 ];
+
+export type NutritionFactKey = (typeof NUTRITION_FACT_KEYS)[number];
 
 export const evaluateNutritionQuartiles: (
   categoryID: number,
@@ -68,7 +70,7 @@ export const evaluateNutritionQuartiles: (
 
       if (itemIndex !== -1) {
         for (let q = 1; q <= quartile; q++) {
-          if (key === "transFat" && sortedItems[itemIndex].value < 0.01) {
+          if ((key === "transFat" || key === 'cholesterol') && sortedItems[itemIndex].value < 0.01) {
             quartiles[key] = 1;
           } else if (itemIndex < quartileSize * q) {
             quartiles[key] = q;

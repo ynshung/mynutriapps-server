@@ -20,6 +20,7 @@ import { and, eq } from "drizzle-orm";
 import { processUnvectorizedImages } from "./frontImageVector";
 import { productsQuery } from "../routes/product";
 import { evaluateNutritionQuartiles } from "@/utils/evaluateNutritionQuartiles";
+import { setCategoryProductScore } from "./recommendation";
 
 export const getProductData = async (id: number, userId?: number) => {
   const data = await db
@@ -145,6 +146,7 @@ export const createNewProduct = async (
       })
       .returning({ id: foodProductsTable.id });
     await createNewProductNutrition(id[0].id, newProduct, db);
+    setCategoryProductScore(parseInt(newProduct.category));
 
     return id[0].id;
   });
@@ -355,6 +357,7 @@ export const editProductData = async (
       uncategorized: toValidStringArrayOrNull(newProduct.uncategorized),
     });
   }
+  setCategoryProductScore(parseInt(newProduct.category));
 };
 
 /**

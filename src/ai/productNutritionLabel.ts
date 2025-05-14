@@ -7,6 +7,7 @@ import {
 } from "./schema";
 import { generateData } from "../utils/ai";
 import sharp from "sharp";
+import { NUTRITION_FACT_KEYS } from "@/utils/evaluateNutritionQuartiles";
 
 export const processNutritionLabelV2 = async (
   nutritionLabelBuffer: Buffer<ArrayBufferLike>,
@@ -56,21 +57,6 @@ export const processNutritionLabelV2 = async (
     };
   }
 
-  const nutritionDetailsKeys = [
-    "calories",
-    "fat",
-    "carbs",
-    "protein",
-    "sugar",
-    "monounsaturatedFat",
-    "polyunsaturatedFat",
-    "saturatedFat",
-    "transFat",
-    "fiber",
-    "sodium",
-    "cholesterol",
-  ];
-
   const [nutritionServingsData, nutritionLabelData, nutritionLabelCategory] = await Promise.all([
     generateData<NutritionInfoServings>(
       liteModel,
@@ -93,7 +79,7 @@ export const processNutritionLabelV2 = async (
   ]);
   if (nutritionServingsData && nutritionLabelData) {
     if (extractInstruction === "per serving" && nutritionServingsData.servingSize) {
-      for (const key of nutritionDetailsKeys) {
+      for (const key of NUTRITION_FACT_KEYS) {
         const conversionFactor = 100 / nutritionServingsData.servingSize;
         const value = nutritionLabelData[key as keyof NutritionInfoDetails];
         if (value !== undefined) {

@@ -55,6 +55,7 @@ export type ProductCardType = {
   images: Record<string, string>;
   favorite?: boolean;
   createdAt?: Date; // might be missing on some query
+  quartile: schema.ProductScore | null;
 };
 
 // For product card
