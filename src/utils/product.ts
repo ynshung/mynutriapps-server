@@ -194,17 +194,39 @@ export const uploadProductImages = async (
       if (image && image.size > 0) {
         const { imageID } = await uploadImage(image, userID);
 
+        const keyType =
+          key === "frontLabelImage"
+            ? "front"
+            : key === "nutritionLabelImage"
+            ? "nutritional_table"
+            : key === "ingredientsImage"
+            ? "ingredients"
+            : "other";
+
+        const existingImage = await tx
+          .select()
+          .from(imageFoodProductsTable)
+          .where(
+            and(
+              eq(imageFoodProductsTable.foodProductId, productId),
+              eq(imageFoodProductsTable.type, keyType)
+            )
+          );
+        if (existingImage.length > 0) {
+          await tx
+            .delete(imageFoodProductsTable)
+            .where(
+              and(
+                eq(imageFoodProductsTable.foodProductId, productId),
+                eq(imageFoodProductsTable.type, keyType)
+              )
+            );
+        }
+
         await tx.insert(imageFoodProductsTable).values({
           foodProductId: productId,
           imageId: imageID,
-          type:
-            key === "frontLabelImage"
-              ? "front"
-              : key === "nutritionLabelImage"
-              ? "nutritional_table"
-              : key === "ingredientsImage"
-              ? "ingredients"
-              : "other",
+          type: keyType,
         });
       }
     })
