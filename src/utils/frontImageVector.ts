@@ -51,12 +51,17 @@ const fetchImageFromS3 = async (imageKey: string) => {
 };
 
 const checkAIServerStatus = async () => {
-  const response = await fetch(process.env.BACKEND_AI_HOST + "/status");
-  if (!response.ok) {
+  try {
+    const response = await fetch(process.env.BACKEND_AI_HOST + "/status");
+    if (!response.ok) {
+      return false;
+    }
+    const data = await response.json();
+    return data.status === "ok";
+  } catch (error) {
+    console.error("Error checking AI server status:", error);
     return false;
   }
-  const data = await response.json();
-  return data.status === "ok";
 };
 
 export const processImage = async (imageBlob: Blob) => {
