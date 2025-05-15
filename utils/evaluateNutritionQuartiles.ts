@@ -20,6 +20,7 @@ export const NUTRITION_FACT_KEYS: (keyof NutritionInfoDB)[] = [
 
 export type NutritionFactKey = (typeof NUTRITION_FACT_KEYS)[number];
 
+// Quartiles for each nutrition fact key
 export const evaluateNutritionQuartiles: (
   categoryID: number,
   quartile?: number,
