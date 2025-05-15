@@ -26,10 +26,9 @@ export type ServerFoodProduct = {
 export type ServerFoodProductDetails = ServerFoodProduct & {
   nutrition_info: NutritionInfoDB | null;
   isUserFavorite: boolean;
-  quartiles: Record<
-    keyof NutritionInfoDB | "additives",
-    number | undefined
-  > | undefined;
+  quartiles:
+    | Record<keyof NutritionInfoDB | "additives", number | undefined>
+    | undefined;
 };
 
 export interface NewFoodProductFormData
@@ -38,12 +37,12 @@ export interface NewFoodProductFormData
     NutritionInfoDetails,
     NutritionInfoCategory,
     FoodIngredientDetails {
-      barcode: string[] | string;
-      verified: string
-      front_label_url?: string;
-      nutrition_label_url?: string;
-      ingredients_url?: string;
-    }
+  barcode: string[] | string;
+  verified: string;
+  front_label_url?: string;
+  nutrition_label_url?: string;
+  ingredients_url?: string;
+}
 
 // For product card
 export type ProductCardType = {
@@ -58,13 +57,29 @@ export type ProductCardType = {
   quartile: schema.ProductScore | null;
 };
 
+export type RelatedProductCardType = {
+  recommendedProducts: (ProductCardType & {
+    recommended: {
+      id: number;
+      similarity?: number;
+      score: number;
+      nutrition: NutritionInfoDB;
+      weightedScore: number;
+      scoreDiff: number;
+      nutritionComparison: Record<string, number>;
+      nutritionMoreIsBetterUserGoal: Record<string, boolean>;
+    };
+  })[];
+  similarProducts: ProductCardType[];
+};
+
 // For product card
 // TODO: Show image (might need resizing) and favorite on search results
 export type ProductSearchResult = {
   id: number;
   name: string | null;
   brand: string | null;
-}
+};
 
 export type ProductSearchResultMS = (ProductSearchResult & SearchResult)[];
 export type ProductSuggestions = Suggestion[];

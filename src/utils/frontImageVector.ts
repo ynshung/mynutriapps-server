@@ -3,6 +3,7 @@ import {
   foodProductsTable,
   imageFoodProductsTable,
   imagesTable,
+  nutritionInfoTable,
 } from "@/src/db/schema";
 import { s3 } from "@/src/utils/s3";
 import {
@@ -121,60 +122,14 @@ export const processUnvectorizedImages = async () => {
   return data.length;
 };
 
-export const findSimilarFoodProduct = async (productID: number) => {
-  const product = await db
-    .select({
-      embedding: imagesTable.embedding,
-      category: foodProductsTable.foodCategoryId,
-    })
-    .from(imageFoodProductsTable)
-    .innerJoin(imagesTable, eq(imagesTable.id, imageFoodProductsTable.imageId))
-    .innerJoin(
-      foodProductsTable,
-      eq(foodProductsTable.id, imageFoodProductsTable.foodProductId)
-    )
-    .where(
-      and(
-        eq(imageFoodProductsTable.foodProductId, productID),
-        eq(imageFoodProductsTable.type, "front")
-      )
-    )
-    .limit(1);
-
-  if (product.length === 0) {
-    console.log("No product found for product ID:", productID);
-    return null;
-  }
-
-  const { embedding, category } = product[0];
-
-  if (!embedding) {
-    console.log("No embedding found for product ID:", productID);
-    return null;
-  }
-
-  return await findSimilarFoodProductByVector({
-    embedding,
-    category,
-    limit: 8,
-    excludeProductID: productID
-  });
-};
-
 export const findSimilarFoodProductByVector = async ({
   embedding,
   category,
   limit = 10,
-  page = 1,
-  excludeProductID,
-  similarityCondition = 0.5,
 }: {
   embedding: number[];
   category: number;
   limit?: number;
-  page?: number;
-  excludeProductID?: number;
-  similarityCondition?: number;
 }) => {
   const similarity = sql<number>`1 - (${cosineDistance(
     imagesTable.embedding,
@@ -185,6 +140,7 @@ export const findSimilarFoodProductByVector = async ({
     .select({
       id: imageFoodProductsTable.foodProductId,
       similarity,
+      score: foodProductsTable.score,
     })
     .from(imageFoodProductsTable)
     .innerJoin(
@@ -193,19 +149,64 @@ export const findSimilarFoodProductByVector = async ({
     )
     .where(
       and(
-        excludeProductID
-          ? ne(imageFoodProductsTable.foodProductId, excludeProductID)
-          : sql`TRUE`,
         eq(foodProductsTable.foodCategoryId, category),
         eq(imageFoodProductsTable.type, "front"),
         isNotNull(imagesTable.embedding),
-        gt(similarity, similarityCondition),
+        gt(similarity, 0.5)
       )
     )
     .innerJoin(imagesTable, eq(imagesTable.id, imageFoodProductsTable.imageId))
     .orderBy((t) => desc(t.similarity))
     .limit(limit)
-    .offset((page - 1) * limit);
+
+  return similarProducts;
+};
+
+export const findRelatedFoodProductByVector = async ({
+  embedding,
+  category,
+  limit = 10,
+  excludeProductID,
+}: {
+  embedding: number[];
+  category: number;
+  limit?: number;
+  excludeProductID: number;
+}) => {
+  const similarity = sql<number>`1 - (${cosineDistance(
+    imagesTable.embedding,
+    embedding
+  )})`;
+
+  const similarProducts = await db
+    .select({
+      id: imageFoodProductsTable.foodProductId,
+      similarity,
+      score: foodProductsTable.score,
+      nutrition: nutritionInfoTable,
+      additives: foodProductsTable.additives,
+    })
+    .from(imageFoodProductsTable)
+    .innerJoin(
+      foodProductsTable,
+      eq(foodProductsTable.id, imageFoodProductsTable.foodProductId)
+    )
+    .leftJoin(
+      nutritionInfoTable,
+      eq(nutritionInfoTable.foodProductId, imageFoodProductsTable.foodProductId)
+    )
+    .where(
+      and(
+        ne(imageFoodProductsTable.foodProductId, excludeProductID),
+        eq(foodProductsTable.foodCategoryId, category),
+        eq(imageFoodProductsTable.type, "front"),
+        isNotNull(imagesTable.embedding),
+        gt(similarity, 0.5)
+      )
+    )
+    .innerJoin(imagesTable, eq(imagesTable.id, imageFoodProductsTable.imageId))
+    .orderBy((t) => desc(t.similarity))
+    .limit(limit);
 
   return similarProducts;
 };

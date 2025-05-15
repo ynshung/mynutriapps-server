@@ -11,7 +11,7 @@ import {
   nutritionInfoTable,
   userProductFavoritesTable,
 } from "../db/schema";
-import { NewFoodProductFormData, ServerFoodProductDetails } from "@/types";
+import { NewFoodProductFormData, ProductCardType, ServerFoodProductDetails } from "@/types";
 import { toArray, toStrOrNull, toValidStringArrayOrNull } from "./type";
 import { uploadImage } from "./image";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
@@ -88,7 +88,10 @@ export const getProductData = async (id: number, userId?: number) => {
   return foodProductDetails;
 };
 
-export const getProductCard = async (productID: number, userID?: number) => {
+export const getProductCard = async (
+  productID: number,
+  userID?: number
+): Promise<ProductCardType> => {
   const data = await productsQuery({ userID })
     .where(eq(foodProductsTable.id, productID))
     .limit(1);

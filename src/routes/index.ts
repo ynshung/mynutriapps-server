@@ -39,15 +39,13 @@ import {
   checkRemovedImages,
   createNewProduct,
   editProductData,
-  getProductCard,
   uploadProductImages,
 } from "../utils/product";
 import { bufferToMulter, fetchImageAsMulter } from "../utils/fetchImage";
 import { uploadImage } from "../utils/image";
 import sharp from "sharp";
 import { adminInferenceProduct } from "./admin";
-import { findSimilarFoodProduct } from "../utils/frontImageVector";
-import { getHistoryRecommendation } from "../utils/recommendation";
+import { findRelatedProductsCards, getHistoryRecommendation } from "../utils/recommendation";
 
 const router = Router();
 
@@ -233,23 +231,22 @@ router.get("/api/v1/category/:id", optionalAuthMiddleware, async (req, res) => {
 router.get("/api/v1/list", optionalAuthMiddleware, listProducts);
 router.get("/api/v1/product/:id", optionalAuthMiddleware, getProduct);
 router.get(
-  "/api/v1/product/similar/:id",
+  "/api/v1/product/related/:id",
   optionalAuthMiddleware,
   async (req, res) => {
     const { id } = req.params;
-    const { userID } = req;
-    const similarProducts = await findSimilarFoodProduct(Number(id));
-    if (!similarProducts) {
+    const { userID, userGoal } = req;
+    const data = await findRelatedProductsCards(
+      Number(id),
+      userID,
+      userGoal,
+    );
+
+    if (!data) {
       res.status(200).json([]);
       return;
     }
-    const data = await Promise.all(
-      similarProducts.map(async (item) => {
-        const { id, similarity } = item;
-        const product = await getProductCard(Number(id), userID);
-        return { id, similarity, product };
-      })
-    );
+
     res.status(200).json(data);
   }
 );
@@ -269,11 +266,19 @@ router.get("/api/v1/user/recommendation", authMiddleware, async (req, res) => {
     return;
   }
 
-  const data = await productsQuery({userID})
+  const data = await productsQuery({ userID })
     .where(
-      inArray(foodProductsTable.id, recommendations.map((item) => item.id))
+      inArray(
+        foodProductsTable.id,
+        recommendations.map((item) => item.id)
+      )
     )
-    .orderBy(sql`ARRAY_POSITION(ARRAY[${sql.join(recommendations.map((item) => item.id), sql`, `)}]::INTEGER[], ${foodProductsTable.id})`)
+    .orderBy(
+      sql`ARRAY_POSITION(ARRAY[${sql.join(
+        recommendations.map((item) => item.id),
+        sql`, `
+      )}]::INTEGER[], ${foodProductsTable.id})`
+    )
     .limit(Number(limit))
     .offset((Number(page) - 1) * Number(limit));
 

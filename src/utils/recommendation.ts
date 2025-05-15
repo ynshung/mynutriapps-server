@@ -10,8 +10,15 @@ import {
   ProductScore,
   userProductClicksTable,
 } from "../db/schema";
-import { findSimilarFoodProductByVector } from "./frontImageVector";
-import { NutritionFactKey } from "@/utils/evaluateNutritionQuartiles";
+import {
+  findRelatedFoodProductByVector,
+  findSimilarFoodProductByVector,
+} from "./frontImageVector";
+import {
+  NUTRITION_FACT_KEYS,
+  NutritionFactKey,
+} from "@/utils/evaluateNutritionQuartiles";
+import { getProductCard } from "./product";
 
 const healthGoalWeightage: Record<
   GoalType,
@@ -92,7 +99,6 @@ const getCategoryProductScore = async (categoryID: number, goal: GoalType) => {
       imageFoodProductsTable,
       eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
     )
-    .leftJoin(imagesTable, eq(imagesTable.id, imageFoodProductsTable.imageId))
     .where(
       and(
         eq(foodProductsTable.foodCategoryId, categoryID),
@@ -123,9 +129,9 @@ const getCategoryProductScore = async (categoryID: number, goal: GoalType) => {
   }, {} as Record<NutritionFactKey, { mean: number; stdDev: number }>);
 
   // Calculate min and max for additives length
-  const additivesLengths = categoriesProduct.map(
-    (product) => product.food_products.additives?.length || 0
-  );
+  const additivesLengths = categoriesProduct
+    .map((product) => product.food_products.additives?.length)
+    .filter((length) => length !== undefined);
 
   const minAdditivesLength = Math.min(...additivesLengths);
   const maxAdditivesLength = Math.max(...additivesLengths);
@@ -143,9 +149,11 @@ const getCategoryProductScore = async (categoryID: number, goal: GoalType) => {
 
     // Normalize additives length
     const normalizedAdditivesLength =
-      maxAdditivesLength === minAdditivesLength
+      product.food_products.additives?.length === undefined
+        ? undefined
+        : maxAdditivesLength === minAdditivesLength
         ? 0
-        : (product.food_products.additives?.length || 0 - minAdditivesLength) /
+        : (product.food_products.additives.length - minAdditivesLength) /
           (maxAdditivesLength - minAdditivesLength);
 
     return {
@@ -158,7 +166,7 @@ const getCategoryProductScore = async (categoryID: number, goal: GoalType) => {
   const recommendedProduct: (ProductScore & { id: number })[] = [];
 
   for (const product of normalizedProducts) {
-    const returnObject: typeof recommendedProduct[number] = {
+    const returnObject: (typeof recommendedProduct)[number] = {
       id: product.food_products.id,
       scoreBreakdown: {},
       total: 0,
@@ -224,7 +232,8 @@ export const setCategoryProductScore = async (categoryID: number) => {
   }
 
   for (const [productID, productData] of productsList) {
-    await db.update(foodProductsTable)
+    await db
+      .update(foodProductsTable)
       .set({
         score: productData,
       })
@@ -233,6 +242,19 @@ export const setCategoryProductScore = async (categoryID: number) => {
 
   return productsList;
 };
+
+// (async () => {
+//   // const categories = await listCategoryChildren();
+//   const categories = {42: "test"};
+//   for (const [key] of Object.entries(categories)) {
+//     const categoryID = Number(key);
+//     if (categoryID === 0) continue;
+//     const productScores = await setCategoryProductScore(categoryID);
+//     console.log(
+//       `Category ${key} - ${productScores?.size} products updated`
+//     );
+//   }
+// })();
 
 // TODO: Filter by healthiness, check behaviour in new accounts
 export const getHistoryRecommendation = async (userID: number) => {
@@ -341,4 +363,172 @@ export const getHistoryRecommendation = async (userID: number) => {
   );
 
   return topProducts.sort((a, b) => b.similarity - a.similarity);
+};
+
+export const findRelatedProducts = async (
+  productID: number,
+  goal: GoalType = "improveHealth"
+) => {
+  const product = await db
+    .select({
+      embedding: imagesTable.embedding,
+      category: foodProductsTable.foodCategoryId,
+      score: foodProductsTable.score,
+      nutrition: nutritionInfoTable,
+      additives: foodProductsTable.additives,
+    })
+    .from(imageFoodProductsTable)
+    .innerJoin(imagesTable, eq(imagesTable.id, imageFoodProductsTable.imageId))
+    .innerJoin(
+      foodProductsTable,
+      eq(foodProductsTable.id, imageFoodProductsTable.foodProductId)
+    )
+    .leftJoin(
+      nutritionInfoTable,
+      eq(nutritionInfoTable.foodProductId, imageFoodProductsTable.foodProductId)
+    )
+    .where(
+      and(
+        eq(imageFoodProductsTable.foodProductId, productID),
+        eq(imageFoodProductsTable.type, "front")
+      )
+    )
+    .limit(1);
+
+  if (product.length === 0) {
+    console.log("No product found for product ID:", productID);
+    return null;
+  }
+  // TODO: Product with no nutrition info
+  // Must check if the product has a nutrition info for related products
+  // or else just recommend the most similar product + healthiest product
+  // (I think currently it works out of the box but might check if there is any bugs)
+
+  const currentProduct = product[0];
+
+  if (!currentProduct.embedding) {
+    console.log("No embedding found for product ID:", productID);
+    return null;
+  }
+
+  const similarProductsID = await findRelatedFoodProductByVector({
+    embedding: currentProduct.embedding,
+    category: currentProduct.category,
+    limit: 128,
+    excludeProductID: productID,
+  });
+
+  const filteredProducts = similarProductsID.filter(
+    (product) => product.score !== null
+  );
+
+  const currentProductNutrition = currentProduct.nutrition;
+  const recommendedProducts = filteredProducts
+    .map((newProduct) => {
+      const newProductScore = newProduct.score?.[goal]?.score;
+      if (!newProductScore) {
+        return null;
+      }
+
+      if (
+        Object.keys(newProduct.score?.[goal]?.scoreBreakdown ?? {}).length <= 3
+      ) {
+        return null;
+      }
+
+      const weightedScore =
+        (newProduct.similarity - 0.5) * 2 * 0.25 +
+        (1 / (1 + Math.exp(-newProductScore))) * 0.75;
+
+      const nutritionComparison: Record<string, number> = {};
+      const nutritionMoreIsBetterUserGoal: Record<string, boolean> = {};
+
+      if (currentProductNutrition) {
+        const newNutrition = newProduct.nutrition;
+        if (!newNutrition) return null;
+        for (const key of NUTRITION_FACT_KEYS) {
+          const currentValue = currentProductNutrition[key];
+          const newValue = newNutrition[key];
+
+          if (
+            currentValue &&
+            newValue &&
+            healthGoalWeightage[goal][key] !== 0
+          ) {
+            const valueDiff =
+              (Number(newValue) - Number(currentValue)) /
+              Math.abs(Number(currentValue));
+            const weight = healthGoalWeightage[goal][key] ?? 1;
+            nutritionComparison[key] = valueDiff;
+            nutritionMoreIsBetterUserGoal[key] = weight > 0;
+          }
+        }
+        // Add additives length comparison
+        if (currentProduct.additives && newProduct.additives) {
+          const currentAdditivesLength = currentProduct.additives.length;
+          const newAdditivesLength = newProduct.additives.length;
+
+          const additivesDiff = newAdditivesLength - currentAdditivesLength;
+          const weight = healthGoalWeightage[goal].additives ?? 1;
+          nutritionComparison.additives = additivesDiff;
+          nutritionMoreIsBetterUserGoal.additives = weight > 0;
+        }
+      }
+
+      return {
+        ...newProduct,
+        weightedScore, // Score that takes into account similarity and healthiness
+        score: newProductScore,
+        scoreDiff:
+          newProductScore - (currentProduct.score?.[goal]?.score ?? Infinity),
+        nutritionComparison,
+        nutritionMoreIsBetterUserGoal,
+      };
+    })
+    .filter((newProduct) => newProduct !== null)
+    .sort((a, b) => b.weightedScore - a.weightedScore)
+    .slice(0, 8);
+
+  return {
+    recommendedProducts,
+    similarProducts: similarProductsID.slice(0, 8).map((product) => ({
+      id: product.id,
+      similarity: product.similarity,
+    })),
+  };
+};
+
+export const findRelatedProductsCards = async (
+  productID: number,
+  userID?: number,
+  userGoal: GoalType = "improveHealth"
+) => {
+  const products = await findRelatedProducts(productID, userGoal);
+  if (!products) {
+    return null;
+  }
+
+  const productsID = new Set(
+    [...products.recommendedProducts, ...products.similarProducts].map(
+      (item) => item.id
+    )
+  );
+  const productData = await Promise.all(
+    Array.from(productsID).map(async (id) => {
+      const product = await getProductCard(Number(id), userID);
+      return product;
+    })
+  );
+
+  return {
+    recommendedProducts: products.recommendedProducts.map((item) => {
+      return {
+        ...productData.find((product) => product.id === item.id),
+        recommended: item,
+      };
+    }),
+    similarProducts: products.similarProducts
+      .map((item) => productData.find((product) => product.id === item.id))
+      .filter((product) => product !== undefined),
+  };
 };

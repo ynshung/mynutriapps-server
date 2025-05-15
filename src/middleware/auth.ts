@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { auth } from "../utils/firebase";
 import { db } from "../db";
-import { usersTable } from "../db/schema";
+import { GoalType, usersTable } from "../db/schema";
 import { eq } from "drizzle-orm";
 
 // Extend the Request interface to include the uid property
@@ -11,6 +11,7 @@ declare module "express-serve-static-core" {
     email?: string;
     emailVerified?: boolean;
     userID?: number;
+    userGoal?: GoalType;
   }
 }
 
@@ -101,12 +102,13 @@ export const userAuthMiddleware = async (
 
       // Check if the user exists in the database
       const user = await db
-        .select({ id: usersTable.id })
+        .select({ id: usersTable.id, goal: usersTable.goal })
         .from(usersTable)
         .where(eq(usersTable.firebaseUUID, decodedToken.uid));
 
       if (user.length >= 1) {
         req.userID = user[0].id;
+        req.userGoal = user[0].goal ?? undefined;
       }
 
       next();
@@ -144,16 +146,17 @@ export const optionalAuthMiddleware = async (
       if (req.email && req.emailVerified) {
         // Check if the user exists in the database
         const user = await db
-          .select({ id: usersTable.id })
+          .select({ id: usersTable.id, goal: usersTable.goal })
           .from(usersTable)
           .where(eq(usersTable.firebaseUUID, decodedToken.uid));
 
         if (user.length >= 1) {
           req.userID = user[0].id;
+          req.userGoal = user[0].goal ?? undefined;
         }
       }
     } catch (error) {
-      console.error("Optional auth middleware error:", error);
+      console.warn("Optional auth middleware error:", error);
       // Do not block the request, just proceed without attaching user info
     }
   }
