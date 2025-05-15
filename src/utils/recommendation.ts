@@ -87,7 +87,7 @@ const healthGoalWeightage: Record<
 };
 
 // TODO: Speed up this function
-const getCategoryProductScore = async (categoryID: number, goal: GoalType) => {
+const getCategoryProductScore = async (categoryID: number, goal: GoalType, quartile: number = 6) => {
   const categoriesProduct = await db
     .select()
     .from(foodProductsTable)
@@ -201,12 +201,11 @@ const getCategoryProductScore = async (categoryID: number, goal: GoalType) => {
   );
 
   // Determine quartile ranges
-  const quartileSize = Math.ceil(sortedProducts.length / 3);
+  const quartileSize = Math.ceil(sortedProducts.length / quartile);
 
   sortedProducts.forEach((product, index) => {
-    if (index < quartileSize) product.quartile = 1;
-    else if (index < quartileSize * 2) product.quartile = 2;
-    else product.quartile = 3;
+    const quartileIndex = Math.floor(index / quartileSize) + 1;
+    product.quartile = quartileIndex <= quartile ? quartileIndex : quartile;
   });
 
   return sortedProducts;
@@ -242,19 +241,6 @@ export const setCategoryProductScore = async (categoryID: number) => {
 
   return productsList;
 };
-
-// (async () => {
-//   // const categories = await listCategoryChildren();
-//   const categories = {42: "test"};
-//   for (const [key] of Object.entries(categories)) {
-//     const categoryID = Number(key);
-//     if (categoryID === 0) continue;
-//     const productScores = await setCategoryProductScore(categoryID);
-//     console.log(
-//       `Category ${key} - ${productScores?.size} products updated`
-//     );
-//   }
-// })();
 
 // TODO: Filter by healthiness, check behaviour in new accounts
 export const getHistoryRecommendation = async (userID: number) => {
