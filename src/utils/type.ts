@@ -25,3 +25,11 @@ export const toValidStringArrayOrNull = (value: string | string[] | undefined): 
 export const toStrOrNull = (value: number | string | undefined): string | null => {
   return value === undefined || value === "" ? null : value.toString();
 }
+
+export const toFloatOrNaN = (value: string | null | undefined): number => {
+  if (value === undefined || value === null) {
+    return NaN;
+  }
+  const parsedValue = parseFloat(value);
+  return isNaN(parsedValue) ? NaN : parsedValue;
+}

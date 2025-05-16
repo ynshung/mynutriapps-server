@@ -21,6 +21,7 @@ import { processUnvectorizedImages } from "./frontImageVector";
 import { productsQuery } from "../routes/product";
 import { evaluateNutritionQuartiles } from "@/utils/evaluateNutritionQuartiles";
 import { setCategoryProductScore } from "./recommendation";
+import { calculateNutriScoreDatabase } from "./nutriscore";
 
 export const getProductData = async (id: number, userId?: number) => {
   const data = await db
@@ -150,6 +151,7 @@ export const createNewProduct = async (
       .returning({ id: foodProductsTable.id });
     await createNewProductNutrition(id[0].id, newProduct, db);
     setCategoryProductScore(parseInt(newProduct.category));
+    await calculateNutriScoreDatabase(id[0].id);
 
     return id[0].id;
   });
@@ -361,6 +363,7 @@ export const editProductData = async (
     });
   }
   setCategoryProductScore(parseInt(newProduct.category));
+  await calculateNutriScoreDatabase(newId);
 };
 
 /**

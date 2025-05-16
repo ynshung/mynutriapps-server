@@ -165,6 +165,7 @@ export const nutritionInfoTable = pgTable("nutrition_info", {
   vitamins: text().array(),
   minerals: text().array(),
   uncategorized: text().array(),
+  nutriscore: text(),
 });
 
 // TODO - inconsistent naming of Id and ID

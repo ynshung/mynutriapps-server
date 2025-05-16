@@ -87,7 +87,11 @@ const healthGoalWeightage: Record<
 };
 
 // TODO: Speed up this function
-const getCategoryProductScore = async (categoryID: number, goal: GoalType, quartile: number = 6) => {
+const getCategoryProductScore = async (
+  categoryID: number,
+  goal: GoalType,
+  quartile: number = 6
+) => {
   const categoriesProduct = await db
     .select()
     .from(foodProductsTable)
@@ -139,7 +143,12 @@ const getCategoryProductScore = async (categoryID: number, goal: GoalType, quart
   // Normalize nutrition info using z-score
   const normalizedProducts = categoriesProduct.map((product) => {
     const normalizedNutrition = nutritionKeys.reduce((acc, key) => {
-      const value = parseFloat(product.nutrition_info[key]?.toString() ?? "");
+      if (
+        product.nutrition_info[key] === null ||
+        product.nutrition_info[key] === undefined
+      )
+        return acc;
+      const value = parseFloat(product.nutrition_info[key].toString());
       if (value) {
         const { mean, stdDev } = stats[key];
         acc[key] = stdDev === 0 ? 0 : (value - mean) / stdDev;
@@ -192,8 +201,9 @@ const getCategoryProductScore = async (categoryID: number, goal: GoalType, quart
       0
     );
     returnObject.score = score;
-
-    recommendedProduct.push(returnObject);
+    if (returnObject.total >= 3) {
+      recommendedProduct.push(returnObject);
+    }
   }
 
   const sortedProducts = recommendedProduct.sort(
