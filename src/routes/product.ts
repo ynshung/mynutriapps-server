@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "@src/db";
-import { and, arrayOverlaps, desc, eq, gt, sql } from "drizzle-orm";
+import { and, arrayOverlaps, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import {
   foodProductsTable,
   imageFoodProductsTable,
@@ -55,7 +55,9 @@ export const productsQuery = ({
         sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`.as(
           "favorite"
         ),
-      quartile: sql<ProductScore | null>`(${foodProductsTable.score} -> ${usersTable.goal ?? "improveHealth"}::text)`,
+      quartile: sql<ProductScore | null>`(${foodProductsTable.score} -> ${
+        usersTable.goal ?? "improveHealth"
+      }::text)`,
       ...additionalFields,
     })
     .from(foodProductsTable)
@@ -75,10 +77,7 @@ export const productsQuery = ({
         userID ? eq(userProductFavoritesTable.userID, userID) : sql`TRUE`
       )
     )
-    .leftJoin(
-      usersTable,
-      eq(usersTable.id, userID ?? -1)
-    )
+    .leftJoin(usersTable, eq(usersTable.id, userID ?? -1))
     .groupBy(
       foodProductsTable.id,
       foodProductsTable.name,
@@ -107,6 +106,9 @@ export const listProducts = async (req: Request, res: Response) => {
   res.json(data);
 };
 
+/**
+ * @deprecated
+ */
 export const listPopularProducts = async (
   page: number,
   limit: number,
@@ -130,6 +132,56 @@ export const listPopularProducts = async (
     .offset((Number(page) - 1) * Number(limit));
 
   return products;
+};
+
+export const listPopularProductsWeighted = async (
+  page: number,
+  limit: number,
+  userID?: number
+) => {
+  const productsClick = await db
+    .select()
+    .from(userProductClicksTable)
+    .limit(5120);
+
+  const times = productsClick.map(({ clickedAt }) => clickedAt.getTime());
+  const maxTime = Math.max(...times);
+  const minTime = Math.min(...times);
+  const DECAY_RATE = 100;
+
+  const scores: Record<string, number> = {};
+  const clickCounts: Record<string, number> = {};
+
+  for (const { foodProductId, clickedAt } of productsClick) {
+    const age = maxTime - clickedAt.getTime();
+    const weight = Math.exp((-DECAY_RATE * age) / (maxTime - minTime)); // normalized decay
+
+    scores[foodProductId] = (scores[foodProductId] || 0) + weight;
+    clickCounts[foodProductId] = (clickCounts[foodProductId] || 0) + 1;
+  }
+
+  const sortedProductIds = Object.entries(scores)
+    .sort(([, scoreA], [, scoreB]) => scoreB - scoreA)
+    .slice((page - 1) * limit, page * limit)
+    .map(([productId]) => productId);
+
+  const popularProducts = await productsQuery({
+    userID,
+  })
+    .where(
+      inArray(
+        foodProductsTable.id,
+        sortedProductIds.map((id) => parseInt(id))
+      )
+    )
+    .orderBy(
+      sql`ARRAY_POSITION(ARRAY[${sql.join(
+        sortedProductIds,
+        sql`, `
+      )}]::INTEGER[], ${foodProductsTable.id})`
+    );
+
+  return popularProducts;
 };
 
 export const searchBarcode = async (req: Request, res: Response) => {

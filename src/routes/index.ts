@@ -8,8 +8,8 @@ import {
   searchBarcode,
   searchProducts,
   searchSuggestions,
-  listPopularProducts,
   productsQuery,
+  listPopularProductsWeighted,
 } from "./product";
 import {
   getCategoryDetails,
@@ -438,7 +438,7 @@ router.get("/api/v1/popular", optionalAuthMiddleware, async (req, res) => {
   const { userID } = req;
   const { page = 1, limit = 10 } = req.query;
 
-  const recentlyViewedProducts = await listPopularProducts(
+  const recentlyViewedProducts = await listPopularProductsWeighted(
     Number(page),
     Number(limit),
     userID
