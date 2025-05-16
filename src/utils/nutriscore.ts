@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import {
   foodCategoryTable,
-  foodProductsTable,
+  foodProductPublicView,
   nutritionInfoTable,
 } from "../db/schema";
 import { db } from "../db";
@@ -82,16 +82,16 @@ const hardcodedFindCategory = (categoryName: string) => {
 export const calculateNutriScoreDatabase = async (productID: number) => {
   const productDB = await db
     .select()
-    .from(foodProductsTable)
+    .from(foodProductPublicView)
     .innerJoin(
       foodCategoryTable,
-      eq(foodCategoryTable.id, foodProductsTable.foodCategoryId)
+      eq(foodCategoryTable.id, foodProductPublicView.foodCategoryId)
     )
     .innerJoin(
       nutritionInfoTable,
-      eq(nutritionInfoTable.foodProductId, foodProductsTable.id)
+      eq(nutritionInfoTable.foodProductId, foodProductPublicView.id)
     )
-    .where(eq(foodProductsTable.id, productID));
+    .where(eq(foodProductPublicView.id, productID));
 
   const product = productDB[0];
 
@@ -109,7 +109,7 @@ export const calculateNutriScoreDatabase = async (productID: number) => {
     protein: toFloatOrNaN(product.nutrition_info.protein),
     fiber: toFloatOrNaN(product.nutrition_info.fiber),
     fvps: 0,
-    ingredients: product.food_products.ingredients ?? "",
+    ingredients: product.food_product_public_view.ingredients ?? "",
   });
 
   await db.update(nutritionInfoTable).set({

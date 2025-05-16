@@ -1,6 +1,7 @@
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "../db";
 import {
+  foodProductPublicView,
   foodProductsTable,
   goalEnum,
   GoalType,
@@ -94,18 +95,18 @@ const getCategoryProductScore = async (
 ) => {
   const categoriesProduct = await db
     .select()
-    .from(foodProductsTable)
+    .from(foodProductPublicView)
     .innerJoin(
       nutritionInfoTable,
-      eq(nutritionInfoTable.foodProductId, foodProductsTable.id)
+      eq(nutritionInfoTable.foodProductId, foodProductPublicView.id)
     )
     .leftJoin(
       imageFoodProductsTable,
-      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
+      eq(imageFoodProductsTable.foodProductId, foodProductPublicView.id)
     )
     .where(
       and(
-        eq(foodProductsTable.foodCategoryId, categoryID),
+        eq(foodProductPublicView.foodCategoryId, categoryID),
         eq(imageFoodProductsTable.type, "front")
       )
     );
@@ -134,7 +135,7 @@ const getCategoryProductScore = async (
 
   // Calculate min and max for additives length
   const additivesLengths = categoriesProduct
-    .map((product) => product.food_products.additives?.length)
+    .map((product) => product.food_product_public_view.additives?.length)
     .filter((length) => length !== undefined);
 
   const minAdditivesLength = Math.min(...additivesLengths);
@@ -158,11 +159,11 @@ const getCategoryProductScore = async (
 
     // Normalize additives length
     const normalizedAdditivesLength =
-      product.food_products.additives?.length === undefined
+      product.food_product_public_view.additives?.length === undefined
         ? undefined
         : maxAdditivesLength === minAdditivesLength
         ? 0
-        : (product.food_products.additives.length - minAdditivesLength) /
+        : (product.food_product_public_view.additives.length - minAdditivesLength) /
           (maxAdditivesLength - minAdditivesLength);
 
     return {
@@ -176,7 +177,7 @@ const getCategoryProductScore = async (
 
   for (const product of normalizedProducts) {
     const returnObject: (typeof recommendedProduct)[number] = {
-      id: product.food_products.id,
+      id: product.food_product_public_view.id,
       scoreBreakdown: {},
       total: 0,
     };
@@ -258,13 +259,13 @@ export const getHistoryRecommendation = async (userID: number) => {
     .select({
       productID: userProductClicksTable.foodProductId,
       embedding: imagesTable.embedding,
-      category: foodProductsTable.foodCategoryId,
+      category: foodProductPublicView.foodCategoryId,
       timestamp: userProductClicksTable.clickedAt,
     })
     .from(userProductClicksTable)
     .innerJoin(
-      foodProductsTable,
-      eq(userProductClicksTable.foodProductId, foodProductsTable.id)
+      foodProductPublicView,
+      eq(userProductClicksTable.foodProductId, foodProductPublicView.id)
     )
     .innerJoin(
       imageFoodProductsTable,
@@ -368,16 +369,16 @@ export const findRelatedProducts = async (
   const product = await db
     .select({
       embedding: imagesTable.embedding,
-      category: foodProductsTable.foodCategoryId,
-      score: foodProductsTable.score,
+      category: foodProductPublicView.foodCategoryId,
+      score: foodProductPublicView.score,
       nutrition: nutritionInfoTable,
-      additives: foodProductsTable.additives,
+      additives: foodProductPublicView.additives,
     })
     .from(imageFoodProductsTable)
     .innerJoin(imagesTable, eq(imagesTable.id, imageFoodProductsTable.imageId))
     .innerJoin(
-      foodProductsTable,
-      eq(foodProductsTable.id, imageFoodProductsTable.foodProductId)
+      foodProductPublicView,
+      eq(foodProductPublicView.id, imageFoodProductsTable.foodProductId)
     )
     .leftJoin(
       nutritionInfoTable,

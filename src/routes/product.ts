@@ -11,6 +11,7 @@ import {
   userSearchHistoryTable,
   usersTable,
   ProductScore,
+  foodProductPublicView,
 } from "@src/db/schema";
 import { ProductCardType } from "@/types";
 import { logger } from "@src/utils/logger";
@@ -39,58 +40,60 @@ export const productsQuery = ({
 }) => {
   return db
     .select({
-      id: foodProductsTable.id,
-      barcode: foodProductsTable.barcode,
-      name: sql<string>`${foodProductsTable.name}`.as("product_name"),
-      brand: foodProductsTable.brand,
+      id: foodProductPublicView.id,
+      barcode: foodProductPublicView.barcode,
+      name: sql<string>`${foodProductPublicView.name}`.as("product_name"),
+      brand: foodProductPublicView.brand,
       category: sql<string>`${foodCategoryTable.name}`.as("category_name"),
       images: sql<
         Record<string, string>
       >`json_object_agg(${imageFoodProductsTable.type}, ${imagesTable.imageKey})`.as(
         "images"
       ),
-      verified: foodProductsTable.verified,
-      createdAt: foodProductsTable.createdAt,
+      verified: foodProductPublicView.verified,
+      createdAt: foodProductPublicView.createdAt,
       favorite:
         sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`.as(
           "favorite"
         ),
-      quartile: sql<ProductScore | null>`(${foodProductsTable.score} -> ${
+      quartile: sql<ProductScore | null>`(${foodProductPublicView.score} -> ${
         usersTable.goal ?? "improveHealth"
       }::text)`,
       allergens:
-        sql<boolean>`CASE WHEN ${usersTable.allergies} IS NOT NULL AND ${usersTable.allergies} && ${foodProductsTable.allergens} THEN TRUE ELSE FALSE END`.as(
+        sql<boolean>`CASE WHEN ${usersTable.allergies} IS NOT NULL AND ${usersTable.allergies} && ${foodProductPublicView.allergens} THEN TRUE ELSE FALSE END`.as(
           "allergens"
         ),
       ...additionalFields,
     })
-    .from(foodProductsTable)
+    .from(foodProductPublicView)
     .innerJoin(
       imageFoodProductsTable,
-      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
+      eq(imageFoodProductsTable.foodProductId, foodProductPublicView.id)
     )
     .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
     .innerJoin(
       foodCategoryTable,
-      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
+      eq(foodProductPublicView.foodCategoryId, foodCategoryTable.id)
     )
     .leftJoin(
       userProductFavoritesTable,
       and(
-        eq(userProductFavoritesTable.foodProductId, foodProductsTable.id),
+        eq(userProductFavoritesTable.foodProductId, foodProductPublicView.id),
         userID ? eq(userProductFavoritesTable.userID, userID) : sql`TRUE`
       )
     )
     .leftJoin(usersTable, eq(usersTable.id, userID ?? -1))
     .groupBy(
-      foodProductsTable.id,
-      foodProductsTable.name,
-      foodProductsTable.barcode,
-      foodProductsTable.brand,
-      foodCategoryTable.name,
-      foodProductsTable.verified,
-      foodProductsTable.createdAt,
+      foodProductPublicView.id,
+      foodProductPublicView.name,
+      foodProductPublicView.barcode,
+      foodProductPublicView.brand,
+      foodProductPublicView.verified,
+      foodProductPublicView.createdAt,
       userProductFavoritesTable.foodProductId,
+      foodProductPublicView.score,
+      foodProductPublicView.allergens,
+      foodCategoryTable.name,
       usersTable.goal,
       usersTable.allergies,
       ...additionalGroupBy
@@ -104,7 +107,7 @@ export const listProducts = async (req: Request, res: Response) => {
   const data: ProductCardType[] = await productsQuery({
     userID,
   })
-    .orderBy(desc(foodProductsTable.createdAt))
+    .orderBy(desc(foodProductPublicView.createdAt))
     .limit(Number(limit))
     .offset((Number(page) - 1) * Number(limit));
 
@@ -125,11 +128,12 @@ export const listPopularProducts = async (
       clickCount: db
         .$count(
           userProductClicksTable,
-          eq(userProductClicksTable.foodProductId, foodProductsTable.id)
+          eq(userProductClicksTable.foodProductId, foodProductPublicView.id)
         )
         .as("click_count"),
     },
   })
+    .where(eq(foodProductPublicView.hidden, false))
     // @ts-expect-error: additionalFields is not typed
     .having((fields) => gt(fields.clickCount as number, 0))
     .orderBy(desc(sql`"click_count"`))
@@ -174,16 +178,19 @@ export const listPopularProductsWeighted = async (
     userID,
   })
     .where(
-      inArray(
-        foodProductsTable.id,
-        sortedProductIds.map((id) => parseInt(id))
+      and(
+        inArray(
+          foodProductPublicView.id,
+          sortedProductIds.map((id) => parseInt(id))
+        ),
+        eq(foodProductPublicView.hidden, false)
       )
     )
     .orderBy(
       sql`ARRAY_POSITION(ARRAY[${sql.join(
         sortedProductIds,
         sql`, `
-      )}]::INTEGER[], ${foodProductsTable.id})`
+      )}]::INTEGER[], ${foodProductPublicView.id})`
     );
 
   return popularProducts;
@@ -196,8 +203,13 @@ export const searchBarcode = async (req: Request, res: Response) => {
   const data = await productsQuery({
     userID,
   })
-    .orderBy(desc(foodProductsTable.createdAt))
-    .where(arrayOverlaps(foodProductsTable.barcode, [barcode]))
+    .orderBy(desc(foodProductPublicView.createdAt))
+    .where(
+      and(
+        arrayOverlaps(foodProductPublicView.barcode, [barcode]),
+        eq(foodProductPublicView.hidden, false)
+      )
+    )
     .limit(1);
 
   const product: ProductCardType | undefined =
@@ -247,7 +259,12 @@ export const listRecentlyViewedProducts = async (
   const subquery = db
     .selectDistinctOn([userProductClicksTable.foodProductId])
     .from(userProductClicksTable)
-    .where(eq(userProductClicksTable.userID, id))
+    .where(
+      and(
+        eq(userProductClicksTable.userID, id),
+        eq(foodProductPublicView.hidden, false)
+      )
+    )
     .orderBy(
       desc(userProductClicksTable.foodProductId),
       desc(userProductClicksTable.clickedAt)
@@ -258,7 +275,7 @@ export const listRecentlyViewedProducts = async (
     userID: id,
     additionalGroupBy: [subquery.clickedAt],
   })
-    .innerJoin(subquery, eq(subquery.foodProductId, foodProductsTable.id))
+    .innerJoin(subquery, eq(subquery.foodProductId, foodProductPublicView.id))
     .orderBy(desc(subquery.clickedAt))
     .limit(limit)
     .offset((page - 1) * limit);

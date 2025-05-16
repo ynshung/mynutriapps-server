@@ -1,5 +1,5 @@
 import { aliasedTable, count, desc, eq, getTableColumns, notExists } from "drizzle-orm";
-import { foodCategoryTable, foodProductsTable, imagesTable } from "../db/schema";
+import { foodCategoryTable, foodProductPublicView, imagesTable } from "../db/schema";
 import { db } from "../../src/db";
 import { ProductCardType } from "@/types";
 import { productsQuery } from "./product";
@@ -25,12 +25,13 @@ export const listCategory = async () => {
     .select({
       ...getTableColumns(foodCategoryTable),
       imageKey: imagesTable.imageKey,
-      foodProductCount: count(foodProductsTable.id), // counting product IDs
+      foodProductCount: count(foodProductPublicView.id), // counting product IDs
+      // TODO: is this used?
     })
     .from(foodCategoryTable)
     .leftJoin(
-      foodProductsTable,
-      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
+      foodProductPublicView,
+      eq(foodProductPublicView.foodCategoryId, foodCategoryTable.id)
     )
     .leftJoin(imagesTable, eq(foodCategoryTable.image, imagesTable.id))
     .groupBy(foodCategoryTable.id, imagesTable.imageKey)
@@ -105,9 +106,9 @@ export const getCategoryDetails = async (categoryID: number) => {
 
 export const listProductsCategory = async (categoryID: number, userID?: number, page = 1, limit = 10) => {
   const data: ProductCardType[] = await productsQuery({ userID }).where(
-    eq(foodProductsTable.foodCategoryId, categoryID)
+    eq(foodProductPublicView.foodCategoryId, categoryID)
   )
-    .orderBy(desc(foodProductsTable.createdAt))
+    .orderBy(desc(foodProductPublicView.createdAt))
     .limit(Number(limit))
     .offset((Number(page) - 1) * Number(limit));
 

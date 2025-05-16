@@ -2,7 +2,7 @@ import { ProductCardType, ProductSearchResult } from "@/types";
 import { db } from "../db";
 import {
   foodCategoryTable,
-  foodProductsTable,
+  foodProductPublicView,
   imageFoodProductsTable,
 } from "../db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -13,14 +13,14 @@ import { productsQuery } from "../routes/product";
 const getProductMS = async (): Promise<ProductSearchResult[]> => {
   const data = await db
     .select({
-      id: foodProductsTable.id,
-      name: foodProductsTable.name,
-      brand: foodProductsTable.brand,
+      id: foodProductPublicView.id,
+      name: foodProductPublicView.name,
+      brand: foodProductPublicView.brand,
     })
-    .from(foodProductsTable)
+    .from(foodProductPublicView)
     .innerJoin(
       foodCategoryTable,
-      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
+      eq(foodProductPublicView.foodCategoryId, foodCategoryTable.id)
     );
   
   // Replace diacritics
@@ -53,11 +53,11 @@ export const searchProductsMS = async (
   })
     .where(
       and(
-        inArray(foodProductsTable.id, idList),
+        inArray(foodProductPublicView.id, idList),
         eq(imageFoodProductsTable.type, "front")
       )
     )
-    .orderBy(sql`ARRAY_POSITION(ARRAY[${sql.join(idList, sql`, `)}]::INTEGER[], ${foodProductsTable.id})`);
+    .orderBy(sql`ARRAY_POSITION(ARRAY[${sql.join(idList, sql`, `)}]::INTEGER[], ${foodProductPublicView.id})`);
 
   return dbQuery;
 };

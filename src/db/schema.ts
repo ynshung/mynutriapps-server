@@ -1,4 +1,5 @@
-import { AnyPgColumn, boolean, date, index, jsonb, vector } from "drizzle-orm/pg-core";
+import { desc, eq } from "drizzle-orm";
+import { AnyPgColumn, boolean, date, index, jsonb, pgView, vector } from "drizzle-orm/pg-core";
 import {
   integer,
   numeric,
@@ -137,7 +138,17 @@ export const foodProductsTable = pgTable("food_products", {
       onUpdate: "cascade",
     }),
   adminComment: text(),
+  hidden: boolean().default(false),
 });
+
+export const foodProductPublicView = pgView("food_product_public_view").as(
+  (qb) =>
+    qb
+      .select()
+      .from(foodProductsTable)
+      .where(eq(foodProductsTable.hidden, false))
+      .orderBy(desc(foodProductsTable.createdAt))
+);
 
 export const nutritionInfoTable = pgTable("nutrition_info", {
   foodProductId: integer()

@@ -1,6 +1,6 @@
 import { db } from "@/src/db";
 import {
-  foodProductsTable,
+  foodProductPublicView,
   imageFoodProductsTable,
   imagesTable,
   nutritionInfoTable,
@@ -140,16 +140,16 @@ export const findSimilarFoodProductByVector = async ({
     .select({
       id: imageFoodProductsTable.foodProductId,
       similarity,
-      score: foodProductsTable.score,
+      score: foodProductPublicView.score,
     })
     .from(imageFoodProductsTable)
     .innerJoin(
-      foodProductsTable,
-      eq(foodProductsTable.id, imageFoodProductsTable.foodProductId)
+      foodProductPublicView,
+      eq(foodProductPublicView.id, imageFoodProductsTable.foodProductId)
     )
     .where(
       and(
-        eq(foodProductsTable.foodCategoryId, category),
+        eq(foodProductPublicView.foodCategoryId, category),
         eq(imageFoodProductsTable.type, "front"),
         isNotNull(imagesTable.embedding),
         gt(similarity, 0.5)
@@ -182,14 +182,14 @@ export const findRelatedFoodProductByVector = async ({
     .select({
       id: imageFoodProductsTable.foodProductId,
       similarity,
-      score: foodProductsTable.score,
+      score: foodProductPublicView.score,
       nutrition: nutritionInfoTable,
-      additives: foodProductsTable.additives,
+      additives: foodProductPublicView.additives,
     })
     .from(imageFoodProductsTable)
     .innerJoin(
-      foodProductsTable,
-      eq(foodProductsTable.id, imageFoodProductsTable.foodProductId)
+      foodProductPublicView,
+      eq(foodProductPublicView.id, imageFoodProductsTable.foodProductId)
     )
     .leftJoin(
       nutritionInfoTable,
@@ -198,7 +198,7 @@ export const findRelatedFoodProductByVector = async ({
     .where(
       and(
         ne(imageFoodProductsTable.foodProductId, excludeProductID),
-        eq(foodProductsTable.foodCategoryId, category),
+        eq(foodProductPublicView.foodCategoryId, category),
         eq(imageFoodProductsTable.type, "front"),
         isNotNull(imagesTable.embedding),
         gt(similarity, 0.5)

@@ -5,6 +5,7 @@ import {
 } from "@/types/prompt";
 import {
   foodCategoryTable,
+  foodProductPublicView,
   foodProductsTable,
   imageFoodProductsTable,
   imagesTable,
@@ -26,20 +27,20 @@ import { calculateNutriScoreDatabase } from "./nutriscore";
 export const getProductData = async (id: number, userId?: number) => {
   const data = await db
     .select()
-    .from(foodProductsTable)
-    .where(eq(foodProductsTable.id, id))
+    .from(foodProductPublicView)
+    .where(eq(foodProductPublicView.id, id))
     .leftJoin(
       nutritionInfoTable,
-      eq(foodProductsTable.id, nutritionInfoTable.foodProductId)
+      eq(foodProductPublicView.id, nutritionInfoTable.foodProductId)
     )
     .innerJoin(
       imageFoodProductsTable,
-      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
+      eq(imageFoodProductsTable.foodProductId, foodProductPublicView.id)
     )
     .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
     .innerJoin(
       foodCategoryTable,
-      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
+      eq(foodProductPublicView.foodCategoryId, foodCategoryTable.id)
     );
 
   const foodProduct = data[0];
@@ -64,12 +65,13 @@ export const getProductData = async (id: number, userId?: number) => {
 
   const quartiles = await evaluateNutritionQuartiles(foodProduct.food_category.id);
   const productQuartiles = quartiles.find(
-    (item) => item.id === foodProduct.food_products.id
+    (item) => item.id === foodProduct.food_product_public_view.id
   )?.quartiles;
 
   // Process images
   const foodProductDetails: ServerFoodProductDetails = {
     ...foodProduct,
+    food_products: foodProduct.food_product_public_view,
     images: [],
     isUserFavorite,
     quartiles: productQuartiles,
@@ -94,7 +96,7 @@ export const getProductCard = async (
   userID?: number
 ): Promise<ProductCardType> => {
   const data = await productsQuery({ userID })
-    .where(eq(foodProductsTable.id, productID))
+    .where(eq(foodProductPublicView.id, productID))
     .limit(1);
 
   return data[0];

@@ -1,5 +1,5 @@
 import { db } from "@/src/db";
-import { foodProductsTable, nutritionInfoTable } from "@/src/db/schema";
+import { foodProductPublicView, nutritionInfoTable } from "@/src/db/schema";
 import { NutritionInfoDB } from "@/types";
 import { and, eq, getTableColumns } from "drizzle-orm";
 
@@ -32,19 +32,19 @@ export const evaluateNutritionQuartiles: (
 > = async (categoryID: number, quartile = 3) => {
   const data = await db
     .select({
-      id: foodProductsTable.id,
+      id: foodProductPublicView.id,
       nutrition_info: getTableColumns(nutritionInfoTable),
       food_products: {
-        ingredients: foodProductsTable.ingredients,
-        additives: foodProductsTable.additives,
+        ingredients: foodProductPublicView.ingredients,
+        additives: foodProductPublicView.additives,
       },
     })
     .from(nutritionInfoTable)
     .innerJoin(
-      foodProductsTable,
-      eq(nutritionInfoTable.foodProductId, foodProductsTable.id)
+      foodProductPublicView,
+      eq(nutritionInfoTable.foodProductId, foodProductPublicView.id)
     )
-    .where(and(eq(foodProductsTable.foodCategoryId, categoryID)));
+    .where(and(eq(foodProductPublicView.foodCategoryId, categoryID)));
 
   const result = data.map((item) => {
     const quartiles: Record<string, number> = {};

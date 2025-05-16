@@ -26,7 +26,7 @@ import {
 } from "../middleware/auth";
 import { db } from "../db";
 import {
-  foodProductsTable,
+  foodProductPublicView,
   imagesTable,
   userProductFavoritesTable,
   usersTable,
@@ -269,7 +269,7 @@ router.get("/api/v1/user/recommendation", authMiddleware, async (req, res) => {
   const data = await productsQuery({ userID })
     .where(
       inArray(
-        foodProductsTable.id,
+          foodProductPublicView.id,
         recommendations.map((item) => item.id)
       )
     )
@@ -277,7 +277,7 @@ router.get("/api/v1/user/recommendation", authMiddleware, async (req, res) => {
       sql`ARRAY_POSITION(ARRAY[${sql.join(
         recommendations.map((item) => item.id),
         sql`, `
-      )}]::INTEGER[], ${foodProductsTable.id})`
+      )}]::INTEGER[], ${foodProductPublicView.id})`
     )
     .limit(Number(limit))
     .offset((Number(page) - 1) * Number(limit));
