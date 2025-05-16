@@ -483,7 +483,7 @@ router.post(
       return;
     }
 
-    const result = await createProduct(barcode, userID ?? 0, {
+    const result = await createProduct(barcode, userID ?? -1, {
       frontLabel,
       nutritionLabel,
       ingredients,
