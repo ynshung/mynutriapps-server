@@ -182,14 +182,14 @@ const getCategoryProductScore = async (
     };
     const score = Object.entries(healthGoalWeightage[goal]).reduce(
       (acc, [key, weight]) => {
-        if (!weight) return acc;
+        if (weight === 0) return acc;
 
         const isAdditives = key === "additives";
         const value = isAdditives
           ? product.normalizedAdditivesLength
           : product.normalizedNutrition[key as NutritionFactKey];
 
-        if (value !== undefined) {
+        if (value !== undefined || (value === 0 && isAdditives)) {
           const contribution = weight * value;
           returnObject.scoreBreakdown![key] = contribution;
           returnObject.total += 1;
