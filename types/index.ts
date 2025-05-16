@@ -55,6 +55,7 @@ export type ProductCardType = {
   favorite?: boolean;
   createdAt?: Date; // might be missing on some query
   quartile: schema.ProductScore | null;
+  allergens?: boolean;
 };
 
 export type RelatedProductCardType = {
