@@ -19,7 +19,7 @@ import { db } from "../db";
 import { and, eq } from "drizzle-orm";
 import { processUnvectorizedImages } from "./frontImageVector";
 import { productsQuery } from "../routes/product";
-import { evaluateNutritionQuartiles } from "@/utils/evaluateNutritionQuartiles";
+import { evaluateNutritionQuartiles } from "@/src/utils/evaluateNutritionQuartiles";
 import { setCategoryProductScore } from "./recommendation";
 import { calculateNutriScoreDatabase } from "./nutriscore";
 

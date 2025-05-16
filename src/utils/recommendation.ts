@@ -17,7 +17,7 @@ import {
 import {
   NUTRITION_FACT_KEYS,
   NutritionFactKey,
-} from "@/utils/evaluateNutritionQuartiles";
+} from "@/src/utils/evaluateNutritionQuartiles";
 import { getProductCard } from "./product";
 
 const healthGoalWeightage: Record<

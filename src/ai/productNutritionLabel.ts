@@ -7,7 +7,7 @@ import {
 } from "./schema";
 import { generateData } from "../utils/ai";
 import sharp from "sharp";
-import { NUTRITION_FACT_KEYS } from "@/utils/evaluateNutritionQuartiles";
+import { NUTRITION_FACT_KEYS } from "@/src/utils/evaluateNutritionQuartiles";
 
 export const processNutritionLabelV2 = async (
   nutritionLabelBuffer: Buffer<ArrayBufferLike>,
