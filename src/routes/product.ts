@@ -58,6 +58,10 @@ export const productsQuery = ({
       quartile: sql<ProductScore | null>`(${foodProductsTable.score} -> ${
         usersTable.goal ?? "improveHealth"
       }::text)`,
+      allergens:
+        sql<boolean>`CASE WHEN ${usersTable.allergies} IS NOT NULL AND ${usersTable.allergies} && ${foodProductsTable.allergens} THEN TRUE ELSE FALSE END`.as(
+          "allergens"
+        ),
       ...additionalFields,
     })
     .from(foodProductsTable)
@@ -88,6 +92,7 @@ export const productsQuery = ({
       foodProductsTable.createdAt,
       userProductFavoritesTable.foodProductId,
       usersTable.goal,
+      usersTable.allergies,
       ...additionalGroupBy
     );
 };

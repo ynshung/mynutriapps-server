@@ -483,11 +483,10 @@ export const findRelatedProducts = async (
     })
     .filter((newProduct) => newProduct !== null)
     .sort((a, b) => b.weightedScore - a.weightedScore)
-    .slice(0, 8);
 
   return {
     recommendedProducts,
-    similarProducts: similarProductsID.slice(0, 8).map((product) => ({
+    similarProducts: similarProductsID.map((product) => ({
       id: product.id,
       similarity: product.similarity,
     })),
@@ -497,7 +496,8 @@ export const findRelatedProducts = async (
 export const findRelatedProductsCards = async (
   productID: number,
   userID?: number,
-  userGoal: GoalType = "improveHealth"
+  userGoal: GoalType = "improveHealth",
+  slice: number = 8
 ) => {
   const products = await findRelatedProducts(productID, userGoal);
   if (!products) {
@@ -517,14 +517,18 @@ export const findRelatedProductsCards = async (
   );
 
   return {
-    recommendedProducts: products.recommendedProducts.map((item) => {
-      return {
-        ...productData.find((product) => product.id === item.id),
-        recommended: item,
-      };
-    }),
+    recommendedProducts: products.recommendedProducts
+      .map((item) => {
+        return {
+          ...productData.find((product) => product.id === item.id),
+          recommended: item,
+        };
+      })
+      .filter((product) => product.allergens !== true)
+      .slice(0, slice),
     similarProducts: products.similarProducts
       .map((item) => productData.find((product) => product.id === item.id))
-      .filter((product) => product !== undefined),
+      .filter((product) => product !== undefined)
+      .slice(0, slice),
   };
 };
