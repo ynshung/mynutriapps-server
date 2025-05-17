@@ -29,6 +29,7 @@ import {
   foodProductPublicView,
   imagesTable,
   userProductFavoritesTable,
+  userReportTable,
   usersTable,
 } from "../db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -494,6 +495,40 @@ router.post(
       product_id
     );
     res.status(201).json(result);
+  }
+);
+
+// Report
+router.post(
+  "/api/v1/product/report",
+  authMiddleware,
+  async (req, res) => {
+    const { userID } = req;
+    const { productID, reportType, description } = req.body;
+
+    if (!userID) {
+      res.status(403).json({
+        status: "error",
+        message: "Invalid account",
+      });
+      return;
+    }
+
+    if (!productID || !reportType) {
+      res.status(400).send("Product ID and report type are required");
+      return;
+    }
+
+    await db.insert(userReportTable).values({
+      userID: Number(userID),
+      foodProductId: Number(productID),
+      reportType: reportType,
+      reportDescription: description,
+    });
+    
+    res.status(200).json({
+      status: "success",
+    });
   }
 );
 

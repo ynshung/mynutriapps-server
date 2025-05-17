@@ -247,13 +247,15 @@ export const userProductFavoritesTable = pgTable("user_product_favorites", {
   favoritedAt: timestamp().notNull().defaultNow(),
 });
 
-export const userReportTypes = pgEnum("user_report_types", [
+export const reportTypes = [
   "invalid_name_brand",
   "invalid_category",
   "invalid_nutrition",
   "invalid_image",
+  "other",
   "resubmission",
-]);
+] as const;
+export const userReportTypes = pgEnum("user_report_types", reportTypes);
 export const userReportStatus = pgEnum("user_report_status", ["pending", "resolved", "rejected"]);
 
 export const userReportTable = pgTable("user_report", {
@@ -276,7 +278,7 @@ export const userReportTable = pgTable("user_report", {
       onUpdate: "set null",
     }),
 
-  reportType: userReportTypes().notNull(),
+  reportType: userReportTypes().array(),
   reportDescription: text(),
   reportTimestamp: timestamp().notNull().defaultNow(),
 
