@@ -1,7 +1,7 @@
 import { db } from "@/src/db";
 import { foodProductPublicView, nutritionInfoTable } from "@/src/db/schema";
 import { NutritionInfoDB } from "@/types";
-import { and, eq, getTableColumns } from "drizzle-orm";
+import { eq, getTableColumns } from "drizzle-orm";
 
 export const NUTRITION_FACT_KEYS: (keyof NutritionInfoDB)[] = [
   "calories",
@@ -44,7 +44,7 @@ export const evaluateNutritionQuartiles: (
       foodProductPublicView,
       eq(nutritionInfoTable.foodProductId, foodProductPublicView.id)
     )
-    .where(and(eq(foodProductPublicView.foodCategoryId, categoryID)));
+    .where(eq(foodProductPublicView.foodCategoryId, categoryID));
 
   const result = data.map((item) => {
     const quartiles: Record<string, number> = {};
