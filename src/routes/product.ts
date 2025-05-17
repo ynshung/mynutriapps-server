@@ -12,6 +12,7 @@ import {
   usersTable,
   ProductScore,
   foodProductPublicView,
+  userReportTable,
 } from "@src/db/schema";
 import { ProductCardType } from "@/types";
 import { logger } from "@src/utils/logger";
@@ -321,7 +322,8 @@ export const createProduct = async (
     frontLabel: Express.Multer.File;
     nutritionLabel?: Express.Multer.File;
     ingredients?: Express.Multer.File;
-  }
+  },
+  existingID?: string
 ) => {
   const [frontLabelData, nutritionLabelData, ingredientsData] =
     await Promise.all([
@@ -349,6 +351,7 @@ export const createProduct = async (
         name: frontLabelData.name,
         brand: frontLabelData.brand,
         foodCategoryId: categoryId ?? 0, // Uncategorized if undefined
+        hidden: existingID ? true : false,
       };
 
       // (2.5) Ingredients
@@ -385,6 +388,16 @@ export const createProduct = async (
         userID,
         tx
       );
+
+      // (5) Existing Product Report
+      if (existingID) {
+        await tx.insert(userReportTable).values({
+          userID: userID,
+          foodProductId: productId,
+          oldFoodProductId: parseInt(existingID),
+          reportType: "resubmission",
+        })
+      }
 
       return {
         status: "success",

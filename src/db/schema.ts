@@ -246,3 +246,46 @@ export const userProductFavoritesTable = pgTable("user_product_favorites", {
     }),
   favoritedAt: timestamp().notNull().defaultNow(),
 });
+
+export const userReportTypes = pgEnum("user_report_types", [
+  "invalid_name_brand",
+  "invalid_category",
+  "invalid_nutrition",
+  "invalid_image",
+  "resubmission",
+]);
+export const userReportStatus = pgEnum("user_report_status", ["pending", "resolved", "rejected"]);
+
+export const userReportTable = pgTable("user_report", {
+  reportID: serial().primaryKey(),
+  userID: integer()
+    .notNull()
+    .default(-1)
+    .references(() => usersTable.id, {
+      onDelete: "set default",
+      onUpdate: "set default",
+    }),
+  foodProductId: integer()
+    .references(() => foodProductsTable.id, {
+      onDelete: "set null",
+      onUpdate: "set null",
+    }),
+  oldFoodProductId: integer()
+    .references(() => foodProductsTable.id, {
+      onDelete: "set null",
+      onUpdate: "set null",
+    }),
+
+  reportType: userReportTypes().notNull(),
+  reportDescription: text(),
+  reportTimestamp: timestamp().notNull().defaultNow(),
+
+  reportStatus: userReportStatus().notNull().default("pending"),
+  adminComment: text(),
+  closeAdmin: integer()
+    .references(() => usersTable.id, {
+      onDelete: "set null",
+      onUpdate: "set null",
+    }),
+  closeTimestamp: timestamp(),
+});

@@ -268,9 +268,9 @@ router.get("/api/v1/user/recommendation", authMiddleware, async (req, res) => {
 
   const data = await productsQuery({ userID })
     .where(
-      inArray(
+        inArray(
           foodProductPublicView.id,
-        recommendations.map((item) => item.id)
+          recommendations.map((item) => item.id)
       )
     )
     .orderBy(
@@ -473,21 +473,26 @@ router.post(
     const nutritionLabel = images["nutrition_label"][0];
     const ingredients = images["ingredients"][0];
 
-    const barcode = req.body.barcode;
+    const { barcode, product_id } = req.body;
 
-    if (!barcode) {
+    if (!barcode && !product_id) {
       res.status(400).json({
         status: "error",
-        message: "Barcode is required",
+        message: "Barcode or Product ID is required",
       });
       return;
     }
 
-    const result = await createProduct(barcode, userID ?? -1, {
-      frontLabel,
-      nutritionLabel,
-      ingredients,
-    });
+    const result = await createProduct(
+      barcode,
+      userID ?? -1,
+      {
+        frontLabel,
+        nutritionLabel,
+        ingredients,
+      },
+      product_id
+    );
     res.status(201).json(result);
   }
 );
