@@ -148,6 +148,7 @@ export const createNewProduct = async (
         additives: toArray(newProduct.additives),
         allergens: toArray(newProduct.allergens),
         verified: newProduct.verified === "on",
+        hidden: newProduct.hidden === "on",
       })
       .returning({ id: foodProductsTable.id });
     await createNewProductNutrition(id[0].id, newProduct, db);
@@ -308,6 +309,7 @@ export const editProductData = async (
       additives: toArray(newProduct.additives),
       allergens: toArray(newProduct.allergens),
       verified: newProduct.verified === "on",
+      hidden: newProduct.hidden === "on",
     })
     .where(eq(foodProductsTable.id, newId));
 
