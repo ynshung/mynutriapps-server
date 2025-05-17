@@ -27,6 +27,8 @@ import {
 import { searchProductsMS, searchSuggestionsMS } from "../utils/minisearch";
 import { getCategoryIdByName } from "../utils/category";
 import { PgColumn, SelectedFields } from "drizzle-orm/pg-core";
+import { setCategoryProductScore } from "../utils/recommendation";
+import { calculateNutriScoreDatabase } from "../utils/nutriscore";
 
 // TODO: Generalize the functions in this file, whether to use req, res directly or not
 
@@ -345,6 +347,7 @@ export const createProduct = async (
   },
   existingID?: string
 ) => {
+  const oldProduct = parseInt(existingID ?? "");
   const [frontLabelData, nutritionLabelData, ingredientsData] =
     await Promise.all([
       processFrontLabel(images.frontLabel.buffer),
@@ -397,6 +400,9 @@ export const createProduct = async (
         await createNewProductNutrition(productId, nutritionLabelData, tx);
       }
 
+      if (oldProduct) setCategoryProductScore(categoryId);
+      await calculateNutriScoreDatabase(productId);
+
       // (4) Images
       await uploadProductImages(
         productId,
@@ -410,11 +416,11 @@ export const createProduct = async (
       );
 
       // (5) Existing Product Report
-      if (existingID) {
+      if (oldProduct) {
         await tx.insert(userReportTable).values({
           userID: userID,
           foodProductId: productId,
-          oldFoodProductId: parseInt(existingID),
+          oldFoodProductId: oldProduct,
           reportType: ["resubmission"],
         })
       }
