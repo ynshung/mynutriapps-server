@@ -66,6 +66,7 @@ export const productsQuery = ({
         sql<boolean>`CASE WHEN ${usersTable.allergies} IS NOT NULL AND ${usersTable.allergies} && ${table.allergens} THEN TRUE ELSE FALSE END`.as(
           "allergens"
         ),
+      hidden: table.hidden,
       ...additionalFields,
     })
     .from(table)
@@ -93,12 +94,13 @@ export const productsQuery = ({
       table.brand,
       table.verified,
       table.createdAt,
-      userProductFavoritesTable.foodProductId,
       table.score,
       table.allergens,
+      userProductFavoritesTable.foodProductId,
       foodCategoryTable.name,
       usersTable.goal,
       usersTable.allergies,
+      table.hidden,
       ...additionalGroupBy
     );
 };
@@ -111,6 +113,22 @@ export const listProducts = async (req: Request, res: Response) => {
     userID,
   })
     .orderBy(desc(foodProductPublicView.createdAt))
+    .limit(Number(limit))
+    .offset((Number(page) - 1) * Number(limit));
+
+  res.json(data);
+};
+
+export const listSubmittedProducts = async (req: Request, res: Response) => {
+  const { userID } = req;
+  const { page = 1, limit = 10 } = req.query;
+
+  const data: ProductCardType[] = await productsQuery({
+    userID,
+    table: foodProductsTable,
+  })
+    .where(eq(foodProductsTable.createdBy, Number(userID)))
+    .orderBy(desc(foodProductsTable.createdAt))
     .limit(Number(limit))
     .offset((Number(page) - 1) * Number(limit));
 

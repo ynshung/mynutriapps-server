@@ -10,6 +10,7 @@ import {
   searchSuggestions,
   productsQuery,
   listPopularProductsWeighted,
+  listSubmittedProducts,
 } from "./product";
 import {
   getCategoryDetails,
@@ -230,6 +231,7 @@ router.get("/api/v1/category/:id", optionalAuthMiddleware, async (req, res) => {
 
 // Food Products
 router.get("/api/v1/list", optionalAuthMiddleware, listProducts);
+router.get("/api/v1/list-submitted", authMiddleware, listSubmittedProducts);
 router.get("/api/v1/product/:id", optionalAuthMiddleware, getProduct);
 router.get(
   "/api/v1/product/related/:id",

@@ -56,6 +56,7 @@ export type ProductCardType = {
   createdAt?: Date; // might be missing on some query
   quartile: schema.ProductScore | null;
   allergens?: boolean;
+  hidden?: boolean | null;
 };
 
 export type RelatedProductCardType = {
