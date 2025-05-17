@@ -252,6 +252,7 @@ export const reportTypes = [
   "invalid_category",
   "invalid_nutrition",
   "invalid_image",
+  "duplicate_product",
   "other",
   "resubmission",
 ] as const;
