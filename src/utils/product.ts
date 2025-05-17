@@ -5,7 +5,6 @@ import {
 } from "@/types/prompt";
 import {
   foodCategoryTable,
-  foodProductPublicView,
   foodProductsTable,
   imageFoodProductsTable,
   imagesTable,
@@ -27,20 +26,20 @@ import { calculateNutriScoreDatabase } from "./nutriscore";
 export const getProductData = async (id: number, userId?: number) => {
   const data = await db
     .select()
-    .from(foodProductPublicView)
-    .where(eq(foodProductPublicView.id, id))
+    .from(foodProductsTable)
+    .where(eq(foodProductsTable.id, id))
     .leftJoin(
       nutritionInfoTable,
-      eq(foodProductPublicView.id, nutritionInfoTable.foodProductId)
+      eq(foodProductsTable.id, nutritionInfoTable.foodProductId)
     )
     .innerJoin(
       imageFoodProductsTable,
-      eq(imageFoodProductsTable.foodProductId, foodProductPublicView.id)
+      eq(imageFoodProductsTable.foodProductId, foodProductsTable.id)
     )
     .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
     .innerJoin(
       foodCategoryTable,
-      eq(foodProductPublicView.foodCategoryId, foodCategoryTable.id)
+      eq(foodProductsTable.foodCategoryId, foodCategoryTable.id)
     );
 
   const foodProduct = data[0];
@@ -65,13 +64,13 @@ export const getProductData = async (id: number, userId?: number) => {
 
   const quartiles = await evaluateNutritionQuartiles(foodProduct.food_category.id);
   const productQuartiles = quartiles.find(
-    (item) => item.id === foodProduct.food_product_public_view.id
+    (item) => item.id === foodProduct.food_products.id
   )?.quartiles;
 
   // Process images
   const foodProductDetails: ServerFoodProductDetails = {
     ...foodProduct,
-    food_products: foodProduct.food_product_public_view,
+    food_products: foodProduct.food_products,
     images: [],
     isUserFavorite,
     quartiles: productQuartiles,
@@ -95,8 +94,8 @@ export const getProductCard = async (
   productID: number,
   userID?: number
 ): Promise<ProductCardType> => {
-  const data = await productsQuery({ userID })
-    .where(eq(foodProductPublicView.id, productID))
+  const data = await productsQuery({ userID, table: foodProductsTable })
+    .where(eq(foodProductsTable.id, productID))
     .limit(1);
 
   return data[0];

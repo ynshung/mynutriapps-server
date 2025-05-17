@@ -34,66 +34,68 @@ export const productsQuery = ({
   userID,
   additionalGroupBy = [],
   additionalFields = {},
+  table = foodProductPublicView,
 }: {
   userID?: number;
   additionalGroupBy?: PgColumn[];
   additionalFields?: SelectedFields;
+  table?: typeof foodProductPublicView | typeof foodProductsTable;
 }) => {
   return db
     .select({
-      id: foodProductPublicView.id,
-      barcode: foodProductPublicView.barcode,
-      name: sql<string>`${foodProductPublicView.name}`.as("product_name"),
-      brand: foodProductPublicView.brand,
+      id: table.id,
+      barcode: table.barcode,
+      name: sql<string>`${table.name}`.as("product_name"),
+      brand: table.brand,
       category: sql<string>`${foodCategoryTable.name}`.as("category_name"),
       images: sql<
         Record<string, string>
       >`json_object_agg(${imageFoodProductsTable.type}, ${imagesTable.imageKey})`.as(
         "images"
       ),
-      verified: foodProductPublicView.verified,
-      createdAt: foodProductPublicView.createdAt,
+      verified: table.verified,
+      createdAt: table.createdAt,
       favorite:
         sql<boolean>`CASE WHEN ${userProductFavoritesTable.foodProductId} IS NOT NULL THEN TRUE ELSE FALSE END`.as(
           "favorite"
         ),
-      quartile: sql<ProductScore | null>`(${foodProductPublicView.score} -> ${
+      quartile: sql<ProductScore | null>`(${table.score} -> ${
         usersTable.goal ?? "improveHealth"
       }::text)`,
       allergens:
-        sql<boolean>`CASE WHEN ${usersTable.allergies} IS NOT NULL AND ${usersTable.allergies} && ${foodProductPublicView.allergens} THEN TRUE ELSE FALSE END`.as(
+        sql<boolean>`CASE WHEN ${usersTable.allergies} IS NOT NULL AND ${usersTable.allergies} && ${table.allergens} THEN TRUE ELSE FALSE END`.as(
           "allergens"
         ),
       ...additionalFields,
     })
-    .from(foodProductPublicView)
+    .from(table)
     .innerJoin(
       imageFoodProductsTable,
-      eq(imageFoodProductsTable.foodProductId, foodProductPublicView.id)
+      eq(imageFoodProductsTable.foodProductId, table.id)
     )
     .innerJoin(imagesTable, eq(imageFoodProductsTable.imageId, imagesTable.id))
     .innerJoin(
       foodCategoryTable,
-      eq(foodProductPublicView.foodCategoryId, foodCategoryTable.id)
+      eq(table.foodCategoryId, foodCategoryTable.id)
     )
     .leftJoin(
       userProductFavoritesTable,
       and(
-        eq(userProductFavoritesTable.foodProductId, foodProductPublicView.id),
+        eq(userProductFavoritesTable.foodProductId, table.id),
         userID ? eq(userProductFavoritesTable.userID, userID) : sql`TRUE`
       )
     )
     .leftJoin(usersTable, eq(usersTable.id, userID ?? -1))
     .groupBy(
-      foodProductPublicView.id,
-      foodProductPublicView.name,
-      foodProductPublicView.barcode,
-      foodProductPublicView.brand,
-      foodProductPublicView.verified,
-      foodProductPublicView.createdAt,
+      table.id,
+      table.name,
+      table.barcode,
+      table.brand,
+      table.verified,
+      table.createdAt,
       userProductFavoritesTable.foodProductId,
-      foodProductPublicView.score,
-      foodProductPublicView.allergens,
+      table.score,
+      table.allergens,
       foodCategoryTable.name,
       usersTable.goal,
       usersTable.allergies,
@@ -395,7 +397,7 @@ export const createProduct = async (
           userID: userID,
           foodProductId: productId,
           oldFoodProductId: parseInt(existingID),
-          reportType: "resubmission",
+          reportType: ["resubmission"],
         })
       }
 
