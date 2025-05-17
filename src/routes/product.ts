@@ -262,7 +262,6 @@ export const listRecentlyViewedProducts = async (
     .where(
       and(
         eq(userProductClicksTable.userID, id),
-        eq(foodProductPublicView.hidden, false)
       )
     )
     .orderBy(
