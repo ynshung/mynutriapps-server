@@ -17,7 +17,6 @@ import { uploadImage } from "./image";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { db } from "../db";
 import { and, eq } from "drizzle-orm";
-import { processUnvectorizedImages } from "./frontImageVector";
 import { productsQuery } from "../routes/product";
 import { evaluateNutritionQuartiles } from "@/src/utils/evaluateNutritionQuartiles";
 import { setCategoryProductScore } from "./recommendation";
@@ -201,7 +200,7 @@ export const uploadProductImages = async (
     Object.keys(images).map(async (key) => {
       const image = images[key as keyof typeof images];
       if (image && image.size > 0) {
-        const { imageID } = await uploadImage(image, userID);
+        const { imageID } = await uploadImage(image, userID, undefined, key === "frontLabelImage");
 
         const keyType =
           key === "frontLabelImage"
@@ -240,7 +239,6 @@ export const uploadProductImages = async (
       }
     })
   );
-  processUnvectorizedImages();
 };
 
 export const checkRemovedImages = async (

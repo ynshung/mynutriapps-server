@@ -4,6 +4,7 @@ import { imagesTable } from "../db/schema";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { s3, s3BucketName } from "./s3";
 import { logger } from "./logger";
+import { processImage } from "./frontImageVector";
 
 const resizeImage = async (image: Buffer) => {
   const { width, height } = await sharp(image).metadata();
@@ -32,7 +33,8 @@ const uploadToS3 = async (key: string, buffer: Buffer, mimetype: string) => {
 export const uploadImage = async (
   image: Express.Multer.File,
   userID: number,
-  prependDate: boolean = true
+  prependDate: boolean = true,
+  addEmbedding: boolean = false,
 ) => {
   const imageKey = prependDate
     ? `public/${userID}/${Date.now() - Math.floor(Math.random() * 1000 - 500)}-${image.originalname}`
@@ -54,6 +56,17 @@ export const uploadImage = async (
     throw new Error("Image upload failed");
   }
 
+  let embedding: number[] | undefined = undefined;
+  if (addEmbedding) {
+    const blob = new Blob([image.buffer], { type: image.mimetype });
+    const embeddingData = await processImage(blob);
+    if (!embeddingData || embeddingData.status !== "success") {
+      console.warn("Error processing image vector:", imageKey);
+    } else {
+      embedding = embeddingData.data;
+    }
+  }
+
   const result = await db
     .insert(imagesTable)
     .values({
@@ -61,6 +74,7 @@ export const uploadImage = async (
       imageKey: imageKey,
       mimeType: image.mimetype,
       size: image.size,
+      embedding,
       fileName: image.originalname,
     })
     .returning({ id: imagesTable.id });
