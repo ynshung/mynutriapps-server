@@ -311,6 +311,7 @@ export const getProduct = async (req: Request, res: Response) => {
     ? parseInt(req.query.userId as string)
     : undefined;
   const isScanned = req.query.scanned === "true";
+  const isCompare = req.query.compare === "true";
 
   // Process images
   const foodProductDetails = await getProductData(id, userId);
@@ -324,7 +325,7 @@ export const getProduct = async (req: Request, res: Response) => {
 
   res.json(foodProductDetails);
 
-  if (userId) {
+  if (userId && !isCompare) {
     await db
       .insert(userProductClicksTable)
       .values({
