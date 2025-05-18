@@ -380,6 +380,7 @@ export const createProduct = async (
         name: frontLabelData.name,
         brand: frontLabelData.brand,
         foodCategoryId: categoryId ?? 0, // Uncategorized if undefined
+        createdBy: userID,
         hidden: !isNaN(oldProduct) ? true : false,
       };
 
@@ -390,7 +391,6 @@ export const createProduct = async (
           ingredients: ingredientsData.ingredients,
           allergens: ingredientsData.allergens as string[] | undefined,
           additives: ingredientsData.additives as string[] | undefined,
-          createdBy: userID,
         };
       }
 
