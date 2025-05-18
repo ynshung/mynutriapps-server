@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "@src/db";
-import { and, arrayOverlaps, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, arrayOverlaps, desc, eq, getTableColumns, gt, inArray, sql } from "drizzle-orm";
 import {
   foodProductsTable,
   imageFoodProductsTable,
@@ -172,8 +172,13 @@ export const listPopularProductsWeighted = async (
   userID?: number
 ) => {
   const productsClick = await db
-    .select()
+    .select(getTableColumns(userProductClicksTable))
     .from(userProductClicksTable)
+    .innerJoin(
+      foodProductsTable,
+      eq(userProductClicksTable.foodProductId, foodProductsTable.id)
+    )
+    .where(eq(foodProductsTable.hidden, false))
     .limit(5120);
 
   const times = productsClick.map(({ clickedAt }) => clickedAt.getTime());
