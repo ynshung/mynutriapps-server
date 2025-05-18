@@ -428,8 +428,8 @@ export const createProduct = async (
         })
       }
 
-      if (isNaN(oldProduct)) await setCategoryProductScore(categoryId);
-      await calculateNutriScoreDatabase(productId);
+      if (isNaN(oldProduct)) await setCategoryProductScore(categoryId, tx);
+      await calculateNutriScoreDatabase(productId, tx);
 
       return {
         status: "success",
