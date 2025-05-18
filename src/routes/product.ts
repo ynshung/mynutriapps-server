@@ -406,9 +406,6 @@ export const createProduct = async (
         await createNewProductNutrition(productId, nutritionLabelData, tx);
       }
 
-      if (!isNaN(oldProduct)) setCategoryProductScore(categoryId, tx);
-      await calculateNutriScoreDatabase(productId, tx);
-
       // (4) Images
       await uploadProductImages(
         productId,
@@ -430,6 +427,11 @@ export const createProduct = async (
           reportType: ["resubmission"],
         })
       }
+
+      setTimeout(() => {
+        if (!isNaN(oldProduct)) setCategoryProductScore(categoryId);
+        calculateNutriScoreDatabase(productId);
+      }, 1000);
 
       return {
         status: "success",
