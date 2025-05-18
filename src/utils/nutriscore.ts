@@ -46,7 +46,7 @@ function calculatePoints(value: number, thresholds: number[]): number {
   return 0;
 }
 
-const hardcodedFindCategory = (categoryName: string) => {
+export const hardcodedFindCategory = (categoryName: string) => {
   const lowercasedCategoryName = categoryName.toLowerCase();
 
   if (lowercasedCategoryName.includes("drinking water")) {
@@ -120,7 +120,7 @@ export const calculateNutriScoreDatabase = async (productID: number, tx: NodePgD
   return nutriScore;
 };
 
-const calculateNutriScore = ({
+export const calculateNutriScore = ({
   type,
   energy,
   saturatedFat,

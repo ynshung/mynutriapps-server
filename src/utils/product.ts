@@ -20,7 +20,7 @@ import { and, eq } from "drizzle-orm";
 import { productsQuery } from "../routes/product";
 import { evaluateNutritionQuartiles } from "@/src/utils/evaluateNutritionQuartiles";
 import { setCategoryProductScore } from "./recommendation";
-import { calculateNutriScoreDatabase } from "./nutriscore";
+import { calculateNutriScore, calculateNutriScoreDatabase, hardcodedFindCategory } from "./nutriscore";
 
 export const getProductData = async (id: number, userId?: number) => {
   const data = await db
@@ -161,7 +161,9 @@ export const createNewProduct = async (
 export const createNewProductNutrition = async (
   foodProductId: number,
   newProduct: NewFoodProductFormData | NutritionInfoFull,
-  tx: NodePgDatabase = db
+  tx: NodePgDatabase = db,
+  category?: string,
+  ingredients?: string
 ) => {
   await tx.insert(nutritionInfoTable).values({
     foodProductId: foodProductId,
@@ -183,6 +185,17 @@ export const createNewProductNutrition = async (
     vitamins: toValidStringArrayOrNull(newProduct.vitamins),
     minerals: toValidStringArrayOrNull(newProduct.minerals),
     uncategorized: toValidStringArrayOrNull(newProduct.uncategorized),
+    nutriscore: calculateNutriScore({
+      type: hardcodedFindCategory(category ?? ""),
+      energy: newProduct.calories ?? NaN * 4.184,
+      saturatedFat: newProduct.saturatedFat ?? NaN,
+      sugar: newProduct.sugar ?? NaN,
+      salt: newProduct.sodium ?? NaN / 1000,
+      protein: newProduct.protein ?? NaN,
+      fiber: newProduct.fiber ?? NaN,
+      fvps: 0,
+      ingredients: ingredients ?? "",
+    }),
   });
 };
 

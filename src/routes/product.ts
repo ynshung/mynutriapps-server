@@ -28,7 +28,6 @@ import { searchProductsMS, searchSuggestionsMS } from "../utils/minisearch";
 import { getCategoryIdByName } from "../utils/category";
 import { PgColumn, SelectedFields } from "drizzle-orm/pg-core";
 import { setCategoryProductScore } from "../utils/recommendation";
-import { calculateNutriScoreDatabase } from "../utils/nutriscore";
 
 // TODO: Generalize the functions in this file, whether to use req, res directly or not
 
@@ -403,7 +402,13 @@ export const createProduct = async (
 
       // (3) Nutrition Info
       if (nutritionLabelData && nutritionLabelData.extractableTable) {
-        await createNewProductNutrition(productId, nutritionLabelData, tx);
+        await createNewProductNutrition(
+          productId,
+          nutritionLabelData,
+          tx,
+          categoryId ? frontLabelData.category : undefined,
+          ingredientsData?.ingredients
+        );
       }
 
       // (4) Images
@@ -425,11 +430,10 @@ export const createProduct = async (
           foodProductId: productId,
           oldFoodProductId: oldProduct,
           reportType: ["resubmission"],
-        })
+        });
       }
 
       if (isNaN(oldProduct)) await setCategoryProductScore(categoryId, tx);
-      await calculateNutriScoreDatabase(productId, tx);
 
       return {
         status: "success",
