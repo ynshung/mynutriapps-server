@@ -20,6 +20,7 @@ import {
   NutritionFactKey,
 } from "@/src/utils/evaluateNutritionQuartiles";
 import { getProductCard } from "./product";
+import { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 const healthGoalWeightage: Record<
   GoalType,
@@ -91,9 +92,10 @@ const healthGoalWeightage: Record<
 const getCategoryProductScore = async (
   categoryID: number,
   goal: GoalType,
-  quartile: number = 6
+  quartile: number = 6,
+  tx: NodePgDatabase = db
 ) => {
-  const categoriesProduct = await db
+  const categoriesProduct = await tx
     .select()
     .from(foodProductPublicView)
     .innerJoin(
@@ -222,13 +224,13 @@ const getCategoryProductScore = async (
   return sortedProducts;
 };
 
-export const setCategoryProductScore = async (categoryID: number) => {
+export const setCategoryProductScore = async (categoryID: number, tx: NodePgDatabase = db) => {
   if (categoryID === 0) return null;
   const productsList: Map<number, typeof foodProductsTable.$inferSelect.score> =
     new Map();
 
   for (const goal of goalEnum.enumValues) {
-    const recommendations = await getCategoryProductScore(categoryID, goal);
+    const recommendations = await getCategoryProductScore(categoryID, goal, undefined, tx);
     for (const product of recommendations) {
       const productData = productsList.get(product.id) || {};
       productData[goal] = {
@@ -242,7 +244,7 @@ export const setCategoryProductScore = async (categoryID: number) => {
   }
 
   for (const [productID, productData] of productsList) {
-    await db
+    await tx
       .update(foodProductsTable)
       .set({
         score: productData,

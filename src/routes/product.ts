@@ -380,7 +380,7 @@ export const createProduct = async (
         name: frontLabelData.name,
         brand: frontLabelData.brand,
         foodCategoryId: categoryId ?? 0, // Uncategorized if undefined
-        hidden: existingID ? true : false,
+        hidden: !isNaN(oldProduct) ? true : false,
       };
 
       // (2.5) Ingredients
@@ -406,8 +406,8 @@ export const createProduct = async (
         await createNewProductNutrition(productId, nutritionLabelData, tx);
       }
 
-      if (oldProduct) setCategoryProductScore(categoryId);
-      await calculateNutriScoreDatabase(productId);
+      if (!isNaN(oldProduct)) setCategoryProductScore(categoryId, tx);
+      await calculateNutriScoreDatabase(productId, tx);
 
       // (4) Images
       await uploadProductImages(
@@ -422,7 +422,7 @@ export const createProduct = async (
       );
 
       // (5) Existing Product Report
-      if (oldProduct) {
+      if (!isNaN(oldProduct)) {
         await tx.insert(userReportTable).values({
           userID: userID,
           foodProductId: productId,

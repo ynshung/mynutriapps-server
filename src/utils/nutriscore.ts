@@ -6,6 +6,7 @@ import {
 } from "../db/schema";
 import { db } from "../db";
 import { toFloatOrNaN } from "./type";
+import { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 enum NutriScoreProductType {
   GENERAL = "general",
@@ -79,8 +80,8 @@ const hardcodedFindCategory = (categoryName: string) => {
   }
 };
 
-export const calculateNutriScoreDatabase = async (productID: number) => {
-  const productDB = await db
+export const calculateNutriScoreDatabase = async (productID: number, tx: NodePgDatabase = db) => {
+  const productDB = await tx
     .select()
     .from(foodProductPublicView)
     .innerJoin(

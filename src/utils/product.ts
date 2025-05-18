@@ -153,7 +153,7 @@ export const createNewProduct = async (
       .returning({ id: foodProductsTable.id });
     await createNewProductNutrition(id[0].id, newProduct, db);
     setCategoryProductScore(parseInt(newProduct.category));
-    await calculateNutriScoreDatabase(id[0].id);
+    await calculateNutriScoreDatabase(id[0].id, tx);
 
     return id[0].id;
   });
@@ -366,7 +366,7 @@ export const editProductData = async (
     });
   }
   setCategoryProductScore(parseInt(newProduct.category));
-  await calculateNutriScoreDatabase(newId);
+  await calculateNutriScoreDatabase(newId, tx);
 };
 
 /**
