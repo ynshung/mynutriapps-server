@@ -254,7 +254,7 @@ router.get(
   }
 );
 router.get("/api/v1/user/recommendation", authMiddleware, async (req, res) => {
-  const { userID } = req;
+  const { userID, userGoal } = req;
   const { page = 1, limit = 10 } = req.query;
   if (!userID) {
     res.status(403).json({
@@ -263,7 +263,7 @@ router.get("/api/v1/user/recommendation", authMiddleware, async (req, res) => {
     });
     return;
   }
-  const recommendations = await getHistoryRecommendation(userID);
+  const recommendations = await getHistoryRecommendation(userID, userGoal ?? "improveHealth");
   if (!recommendations) {
     res.status(200).json([]);
     return;

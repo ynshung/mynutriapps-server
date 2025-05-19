@@ -255,8 +255,8 @@ export const setCategoryProductScore = async (categoryID: number, tx: NodePgData
   return productsList;
 };
 
-// TODO: Filter by healthiness, check behaviour in new accounts
-export const getHistoryRecommendation = async (userID: number) => {
+// TODO: Check behaviour in new accounts
+export const getHistoryRecommendation = async (userID: number, userGoal: GoalType) => {
   const data = await db
     .select({
       productID: userProductClicksTable.foodProductId,
@@ -348,6 +348,7 @@ export const getHistoryRecommendation = async (userID: number) => {
   const topProducts: {
     id: number;
     similarity: number;
+    score: number | undefined;
   }[] = [];
 
   await Promise.all(
@@ -357,11 +358,27 @@ export const getHistoryRecommendation = async (userID: number) => {
         category: item.category,
         limit: 100,
       });
-      topProducts.push(...similarProducts);
+      const similarProductsWithScore = similarProducts.map((product) => ({
+        id: product.id,
+        similarity: product.similarity,
+        score: product.score?.[userGoal]?.score,
+      }));
+      topProducts.push(...similarProductsWithScore);
     })
   );
 
-  return topProducts.sort((a, b) => b.similarity - a.similarity);
+  return topProducts
+    .map((product) => ({
+      ...product,
+      // Same as recommendation score for individual product
+      // TODO: extract to a formula function?
+      weightedScore:
+        product.score !== undefined
+          ? (product.similarity - 0.5) * 2 * 0.25 +
+            (1 / (1 + Math.exp(-product.score))) * 0.75
+          : product.similarity * 0.5,
+    }))
+    .sort((a, b) => b.weightedScore - a.weightedScore);
 };
 
 export const findRelatedProducts = async (
