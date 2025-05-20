@@ -202,6 +202,7 @@ export const imageFoodProductsTable = pgTable(
 );
 
 export const userProductClicksTable = pgTable("user_product_clicks", {
+  id: uuid().primaryKey().defaultRandom(),
   userID: integer()
     .notNull()
     .references(() => usersTable.id, {
@@ -219,6 +220,7 @@ export const userProductClicksTable = pgTable("user_product_clicks", {
 });
 
 export const userSearchHistoryTable = pgTable("user_search_history", {
+  id: uuid().primaryKey().defaultRandom(),
   userID: integer()
     .notNull()
     .references(() => usersTable.id, {
@@ -245,7 +247,9 @@ export const userProductFavoritesTable = pgTable("user_product_favorites", {
       onUpdate: "cascade",
     }),
   favoritedAt: timestamp().notNull().defaultNow(),
-});
+}, (table) => [
+  primaryKey({columns: [table.userID, table.foodProductId]}),
+]);
 
 export const reportTypes = [
   "invalid_name_brand",
