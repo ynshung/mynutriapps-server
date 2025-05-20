@@ -374,8 +374,8 @@ export const getHistoryRecommendation = async (userID: number, userGoal: GoalTyp
       // TODO: extract to a formula function?
       weightedScore:
         product.score !== undefined
-          ? (product.similarity - 0.5) * 2 * 0.25 +
-            (1 / (1 + Math.exp(-product.score))) * 0.75
+          ? (product.similarity * 0.5) +
+            (1 / (1 + Math.exp(-product.score))) * 0.5
           : product.similarity * 0.5,
     }))
     .sort((a, b) => b.weightedScore - a.weightedScore);
@@ -453,8 +453,8 @@ export const findRelatedProducts = async (
       }
 
       const weightedScore =
-        (newProduct.similarity - 0.5) * 2 * 0.25 +
-        (1 / (1 + Math.exp(-newProductScore))) * 0.75;
+        (newProduct.similarity * 0.5) +
+        (1 / (1 + Math.exp(-newProductScore))) * 0.5;
 
       const nutritionComparison: Record<string, number> = {};
       const nutritionMoreIsBetterUserGoal: Record<string, boolean> = {};
