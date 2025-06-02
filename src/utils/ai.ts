@@ -1,6 +1,8 @@
 import { GoogleGenAI, Part, Schema } from "@google/genai";
 
 import { logger } from "./logger";
+import OpenAI from "openai";
+import { ResponseFormatTextConfig } from "openai/resources/responses/responses";
 
 export const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API! });
 
@@ -57,6 +59,69 @@ export const generateData = async <T>(
       model: model,
       prompt: prompt,
       result: result.text,
+    });
+    return null;
+  }
+};
+
+export const generateDataOpenAI = async <T>(
+  model: string,
+  buffer: Buffer<ArrayBufferLike>,
+  prompt: string,
+  schema: ResponseFormatTextConfig,
+  detail: "auto" | "low" | "high" = "auto",
+): Promise<T | null> => {
+  
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY!,
+  });
+
+  const result = await openai.responses.parse({
+    model: model,
+    input: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: prompt,
+          },
+          {
+            type: "input_image",
+            image_url: `data:image/jpeg;base64,${buffer.toString("base64")}`,
+            detail: detail,
+          },
+        ]
+      }
+    ],
+    text: {
+      format: schema,
+    },
+  });
+
+
+
+  logger.info({
+    message: "Tokens used",
+    usage: {
+      inputToken: result.usage?.input_tokens,
+      outputToken: result.usage?.output_tokens,
+    },
+    model: model,
+    prompt: prompt,
+  });
+  try {
+    if (result.output_text === undefined) throw new Error("Empty response from model.");
+    const parsedResult: T = result.output_parsed as T;
+
+    return parsedResult;
+  } catch (error) {
+    logger.error({
+      message: "Error parsing result",
+      error: error,
+      model: model,
+      prompt: prompt,
+      result: result.output_text,
     });
     return null;
   }
