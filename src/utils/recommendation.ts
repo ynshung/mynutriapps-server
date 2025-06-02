@@ -453,8 +453,8 @@ export const findRelatedProducts = async (
       }
 
       const weightedScore =
-        (newProduct.similarity * 0.5) +
-        (1 / (1 + Math.exp(-newProductScore))) * 0.5;
+        (newProduct.similarity * 0.75) +
+        (1 / (1 + Math.exp(-newProductScore))) * 0.25;
 
       const nutritionComparison: Record<string, number> = {};
       const nutritionMoreIsBetterUserGoal: Record<string, boolean> = {};
@@ -493,6 +493,8 @@ export const findRelatedProducts = async (
 
       return {
         ...newProduct,
+        similarityScore: newProduct.similarity,
+        nutritionScore: (1 / (1 + Math.exp(-newProductScore))),
         weightedScore, // Score that takes into account similarity and healthiness
         score: newProductScore,
         scoreDiff:
