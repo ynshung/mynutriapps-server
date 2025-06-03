@@ -469,12 +469,13 @@ export const findRelatedProducts = async (
           if (
             currentValue &&
             newValue &&
+            healthGoalWeightage[goal][key] &&
             healthGoalWeightage[goal][key] !== 0
           ) {
             const valueDiff =
               (Number(newValue) - Number(currentValue)) /
               Math.abs(Number(currentValue));
-            const weight = healthGoalWeightage[goal][key] ?? 1;
+            const weight = healthGoalWeightage[goal][key];
             nutritionComparison[key] = valueDiff;
             nutritionMoreIsBetterUserGoal[key] = weight > 0;
           }
