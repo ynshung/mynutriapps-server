@@ -72,9 +72,9 @@ const healthGoalWeightage: Record<
     additives: -1.0,
   },
   chronicDisease: {
-    calories: 0.0,
+    calories: -0.5,
     fat: 0.0,
-    carbs: 0.0,
+    carbs: -0.5,
     protein: 0.5,
     sugar: -1.2,
     monounsaturatedFat: 0.5,
