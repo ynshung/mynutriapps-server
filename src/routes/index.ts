@@ -15,7 +15,6 @@ import {
 import {
   getCategoryDetails,
   listCategory,
-  listProductsCategory,
 } from "./category";
 import { Request, Response, NextFunction } from "express";
 import { upload } from "../middleware/upload";
@@ -214,15 +213,31 @@ router.get("/api/v1/category", async (req, res) => {
 
 router.get("/api/v1/category/:id", optionalAuthMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { userID } = req;
-  const { page = 1, limit = 10 } = req.query;
+  const { userID, userGoal } = req;
+  const { page = 1, limit = 10, sort, score_filter } = req.query;
 
-  const productCategory = await listProductsCategory(
-    Number(id),
-    userID,
-    Number(page),
-    Number(limit)
-  );
+  let productCategory;
+  if (sort !== "popular") {
+    productCategory = await listProducts({
+      userID: userID,
+      userGoal: userGoal,
+      categoryId: Number(id),
+      page: Number(page),
+      limit: Number(limit),
+      sort: sort ? String(sort) : undefined,
+      scoreFilter: String(score_filter) === "true" ? true : false,
+    });
+  } else {
+    productCategory = await listPopularProductsWeighted({
+      page: Number(page),
+      limit: Number(limit),
+      userID,
+      categoryId: Number(id),
+      userGoal: String(score_filter) === "true" ? userGoal ?? "improveHealth" : undefined, // todo: refactor this
+      showAll: true,
+    });
+  }
+
   res.status(200).json({
     category: await getCategoryDetails(Number(id)),
     products: productCategory,
@@ -230,7 +245,21 @@ router.get("/api/v1/category/:id", optionalAuthMiddleware, async (req, res) => {
 });
 
 // Food Products
-router.get("/api/v1/list", optionalAuthMiddleware, listProducts);
+router.get("/api/v1/list", optionalAuthMiddleware, async (req: Request, res: Response) => {
+  const { userID, userGoal } = req;
+  const { page = 1, limit = 10, sort, score_filter } = req.query;
+
+  const data = await listProducts({
+    userID: userID,
+    userGoal: userGoal,
+    page: Number(page),
+    limit: Number(limit),
+    sort: sort ? String(sort) : undefined,
+    scoreFilter: String(score_filter) === "true" ? true : false,
+  });
+
+  res.json(data);
+});
 router.get("/api/v1/list-submitted", authMiddleware, listSubmittedProducts);
 router.get("/api/v1/product/:id", optionalAuthMiddleware, getProduct);
 router.get(
@@ -441,11 +470,11 @@ router.get("/api/v1/popular", optionalAuthMiddleware, async (req, res) => {
   const { userID } = req;
   const { page = 1, limit = 10 } = req.query;
 
-  const recentlyViewedProducts = await listPopularProductsWeighted(
-    Number(page),
-    Number(limit),
+  const recentlyViewedProducts = await listPopularProductsWeighted({
+    page: Number(page),
+    limit: Number(limit),
     userID
-  );
+  });
   res.status(200).json(recentlyViewedProducts);
 });
 

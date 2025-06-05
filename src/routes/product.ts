@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "@src/db";
-import { and, arrayOverlaps, desc, eq, getTableColumns, gt, inArray, sql } from "drizzle-orm";
+import { and, arrayOverlaps, desc, eq, getTableColumns, gt, inArray, isNotNull, sql, SQLWrapper } from "drizzle-orm";
 import {
   foodProductsTable,
   imageFoodProductsTable,
@@ -13,6 +13,7 @@ import {
   ProductScore,
   foodProductPublicView,
   userReportTable,
+  GoalType,
 } from "@src/db/schema";
 import { ProductCardType } from "@/types";
 import { logger } from "@src/utils/logger";
@@ -28,6 +29,7 @@ import { searchProductsMS, searchSuggestionsMS } from "../utils/minisearch";
 import { getCategoryIdByName } from "../utils/category";
 import { PgColumn, SelectedFields } from "drizzle-orm/pg-core";
 import { setCategoryProductScore } from "../utils/recommendation";
+import { getSortKey, withPagination, withSort } from "../utils/filter";
 
 // TODO: Generalize the functions in this file, whether to use req, res directly or not
 
@@ -106,18 +108,42 @@ export const productsQuery = ({
     );
 };
 
-export const listProducts = async (req: Request, res: Response) => {
-  const { userID } = req;
-  const { page = 1, limit = 10 } = req.query;
-
-  const data: ProductCardType[] = await productsQuery({
+export const listProducts = async ({
+  userID,
+  userGoal,
+  page = 1,
+  limit = 10,
+  sort = "CREATED_AT_DESC",
+  categoryId,
+  scoreFilter = false,
+}: {
+  userID?: number;
+  userGoal?: GoalType;
+  page?: number;
+  limit?: number;
+  sort?: string;
+  categoryId?: number;
+  scoreFilter?: boolean;
+}) => {
+  const data = productsQuery({
     userID,
   })
-    .orderBy(desc(foodProductPublicView.createdAt))
-    .limit(Number(limit))
-    .offset((Number(page) - 1) * Number(limit));
+    .$dynamic();
+  
+  const filters: SQLWrapper[] = []
 
-  res.json(data);
+  if (categoryId !== undefined) {
+    filters.push(eq(foodProductPublicView.foodCategoryId, categoryId));
+  }
+  if (scoreFilter === true || sort === "healthiness_asc" || sort === "healthiness_desc") {
+    filters.push(isNotNull(sql`${foodProductPublicView.score}->${userGoal ?? "improveHealth"}::text`));
+  }
+  const filteredData = data.where(and(...filters));
+
+  const sortedData = withSort(filteredData, getSortKey(sort as string | undefined), userGoal);
+  const paginatedData = withPagination(sortedData, page, limit);
+
+  return await paginatedData;
 };
 
 export const listSubmittedProducts = async (req: Request, res: Response) => {
@@ -165,11 +191,21 @@ export const listPopularProducts = async (
   return products;
 };
 
-export const listPopularProductsWeighted = async (
-  page: number,
-  limit: number,
-  userID?: number
-) => {
+export const listPopularProductsWeighted = async ({
+  page,
+  limit,
+  userID,
+  categoryId,
+  userGoal,
+  showAll = false,
+}: {
+  page: number;
+  limit: number;
+  userID?: number;
+  categoryId?: number;
+  userGoal?: GoalType;
+  showAll?: boolean;
+}) => {
   const productsClick = await db
     .select(getTableColumns(userProductClicksTable))
     .from(userProductClicksTable)
@@ -177,7 +213,21 @@ export const listPopularProductsWeighted = async (
       foodProductsTable,
       eq(userProductClicksTable.foodProductId, foodProductsTable.id)
     )
-    .where(eq(foodProductsTable.hidden, false))
+    .where(
+      and(
+        eq(foodProductsTable.hidden, false),
+        categoryId
+          ? eq(foodProductsTable.foodCategoryId, categoryId)
+          : sql`TRUE`,
+        userGoal
+          ? isNotNull(
+              sql`${foodProductsTable.score}->${
+                userGoal ?? "improveHealth"
+              }::text`
+            )
+          : sql`TRUE`
+      )
+    )
     .limit(5120);
 
   const times = productsClick.map(({ clickedAt }) => clickedAt.getTime());
@@ -206,11 +256,16 @@ export const listPopularProductsWeighted = async (
   })
     .where(
       and(
-        inArray(
-          foodProductPublicView.id,
-          sortedProductIds.map((id) => parseInt(id))
-        ),
-        eq(foodProductPublicView.hidden, false)
+        !showAll
+          ? inArray(
+              foodProductPublicView.id,
+              sortedProductIds.map((id) => parseInt(id))
+            )
+          : sql`TRUE`,
+        eq(foodProductPublicView.hidden, false),
+        categoryId
+          ? eq(foodProductPublicView.foodCategoryId, categoryId)
+          : sql`TRUE`
       )
     )
     .orderBy(

@@ -104,6 +104,9 @@ export const getCategoryDetails = async (categoryID: number) => {
   return categoryDetails;
 }
 
+/**
+ * @deprecated Use `listProducts` instead
+ */
 export const listProductsCategory = async (categoryID: number, userID?: number, page = 1, limit = 10) => {
   const data: ProductCardType[] = await productsQuery({ userID }).where(
     eq(foodProductPublicView.foodCategoryId, categoryID)
