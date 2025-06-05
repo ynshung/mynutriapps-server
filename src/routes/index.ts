@@ -217,7 +217,17 @@ router.get("/api/v1/category/:id", optionalAuthMiddleware, async (req, res) => {
   const { page = 1, limit = 10, sort, score_filter } = req.query;
 
   let productCategory;
-  if (sort !== "popular") {
+  if (sort === "popular" || sort === "popular_user") {
+    productCategory = await listPopularProductsWeighted({
+      page: Number(page),
+      limit: Number(limit),
+      userID,
+      categoryId: Number(id),
+      userGoal: String(score_filter) === "true" ? userGoal ?? "improveHealth" : undefined, // todo: refactor this
+      showAll: true,
+      userOnly: sort === "popular_user",
+    });
+  } else {
     productCategory = await listProducts({
       userID: userID,
       userGoal: userGoal,
@@ -226,15 +236,6 @@ router.get("/api/v1/category/:id", optionalAuthMiddleware, async (req, res) => {
       limit: Number(limit),
       sort: sort ? String(sort) : undefined,
       scoreFilter: String(score_filter) === "true" ? true : false,
-    });
-  } else {
-    productCategory = await listPopularProductsWeighted({
-      page: Number(page),
-      limit: Number(limit),
-      userID,
-      categoryId: Number(id),
-      userGoal: String(score_filter) === "true" ? userGoal ?? "improveHealth" : undefined, // todo: refactor this
-      showAll: true,
     });
   }
 

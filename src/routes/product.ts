@@ -198,6 +198,7 @@ export const listPopularProductsWeighted = async ({
   categoryId,
   userGoal,
   showAll = false,
+  userOnly = false,
 }: {
   page: number;
   limit: number;
@@ -205,6 +206,7 @@ export const listPopularProductsWeighted = async ({
   categoryId?: number;
   userGoal?: GoalType;
   showAll?: boolean;
+  userOnly?: boolean;
 }) => {
   const productsClick = await db
     .select(getTableColumns(userProductClicksTable))
@@ -225,6 +227,9 @@ export const listPopularProductsWeighted = async ({
                 userGoal ?? "improveHealth"
               }::text`
             )
+          : sql`TRUE`,
+        userOnly
+          ? eq(userProductClicksTable.userID, userID ?? -1)
           : sql`TRUE`
       )
     )
