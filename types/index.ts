@@ -29,6 +29,9 @@ export type ServerFoodProductDetails = ServerFoodProduct & {
   quartiles:
     | Record<keyof NutritionInfoDB | "additives", number | undefined>
     | undefined;
+  ranking:
+    | Record<keyof NutritionInfoDB | "additives", number | undefined>
+    | undefined;
 };
 
 export interface NewFoodProductFormData

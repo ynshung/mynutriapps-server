@@ -62,9 +62,11 @@ export const getProductData = async (id: number, userId?: number) => {
   }
 
   const quartiles = await evaluateNutritionQuartiles(foodProduct.food_category.id);
-  const productQuartiles = quartiles.find(
+  const productInfo = quartiles.find(
     (item) => item.id === foodProduct.food_products.id
-  )?.quartiles;
+  );
+  const productQuartiles = productInfo?.quartiles;
+  const productRanking = productInfo?.ranking;
 
   // Process images
   const foodProductDetails: ServerFoodProductDetails = {
@@ -73,6 +75,7 @@ export const getProductData = async (id: number, userId?: number) => {
     images: [],
     isUserFavorite,
     quartiles: productQuartiles,
+    ranking: productRanking,
   };
   for (const obj of data) {
     const existingImage = foodProductDetails.images.find(
