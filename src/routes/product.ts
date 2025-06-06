@@ -267,6 +267,11 @@ export const listPopularProductsWeighted = async ({
               sortedProductIds.map((id) => parseInt(id))
             )
           : sql`TRUE`,
+        userGoal !== undefined && showAll ? isNotNull(
+          sql`${foodProductPublicView.score}->${
+            userGoal ?? "improveHealth"
+          }::text`
+        ) : sql`TRUE`,
         eq(foodProductPublicView.hidden, false),
         categoryId
           ? eq(foodProductPublicView.foodCategoryId, categoryId)
@@ -278,7 +283,9 @@ export const listPopularProductsWeighted = async ({
         sortedProductIds,
         sql`, `
       )}]::INTEGER[], ${foodProductPublicView.id})`
-    );
+    )
+    .limit(Number(limit))
+    .offset((Number(page) - 1) * Number(limit));
 
   return popularProducts;
 };
