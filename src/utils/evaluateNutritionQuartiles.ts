@@ -63,7 +63,7 @@ export const evaluateNutritionQuartiles: (
 
       const valueSet = new Set(sortedItems.map((i) => i.value));
       const valueIndex = Array.from(valueSet).indexOf(
-        Number(item.nutrition_info[key])
+        Number(item.nutrition_info[key] ?? "NaN")
       );
       if (
         !isNaN(valueIndex) &&
