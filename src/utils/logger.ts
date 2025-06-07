@@ -2,8 +2,8 @@ import winston from "winston";
 
 const { combine, timestamp, printf } = winston.format;
 
-const customFormat = printf(({ level, message, timestamp }) => {
-  return `${timestamp} [${level}]: ${message}`;
+const customFormat = printf((info) => {
+  return `${info.timestamp} [${info.level}]: ${JSON.stringify(info)}`;
 });
 
 export const logger = winston.createLogger({
