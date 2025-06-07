@@ -508,6 +508,7 @@ export const createProduct = async (
       };
     } catch (error) {
       logger.error(error);
+      console.error(error);
       tx.rollback();
       return;
     }

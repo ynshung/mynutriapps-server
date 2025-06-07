@@ -22,8 +22,8 @@ export const toValidStringArrayOrNull = (value: string | string[] | undefined): 
   return null;
 }
 
-export const toStrOrNull = (value: number | string | undefined): string | null => {
-  return value === undefined || value === "" ? null : value.toString();
+export const toStrOrNull = (value: number | string | undefined | null): string | null => {
+  return value === undefined || value === null || value === "" ? null : value.toString();
 }
 
 export const toFloatOrNaN = (value: string | null | undefined): number => {
