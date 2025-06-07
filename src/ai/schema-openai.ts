@@ -146,7 +146,7 @@ export const nutritionInfoCategorySchema: ResponseFormatTextConfig = {
   type: "json_schema",
   name: "nutrition_info_category",
   schema: {
-    type: ["object", "null"],
+    type: "object",
     properties: {
       vitamins: {
         type: ["array", "null"],
@@ -190,6 +190,7 @@ export const nutritionInfoCategorySchema: ResponseFormatTextConfig = {
             "potassium",
             "selenium",
             "zinc",
+            "sodium",
           ],
         },
       },
