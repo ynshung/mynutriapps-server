@@ -142,65 +142,63 @@ export const nutritionInfoDetailsSchema: ResponseFormatTextConfig = {
   strict: true,
 };
 
-// export const nutritionInfoCategorySchema: Schema = {
-//   type: Type.OBJECT,
-//   properties: {
-//     vitamins: {
-//       type: Type.ARRAY,
-//       description: "Available vitamins in the nutrition label",
-//       items: {
-//         type: Type.STRING,
-//         enum: [
-//           "a",
-//           "b1",
-//           "b2",
-//           "b3",
-//           "b5",
-//           "b6",
-//           "b7",
-//           "b9",
-//           "b12",
-//           "c",
-//           "d",
-//           "e",
-//           "k",
-//         ],
-//       },
-//     },
-//     minerals: {
-//       type: Type.ARRAY,
-//       description: "Available minerals in the nutrition label",
-//       items: {
-//         type: Type.STRING,
-//         enum: [
-//           "calcium",
-//           "chloride",
-//           "chromium",
-//           "copper",
-//           "fluoride",
-//           "iodine",
-//           "iron",
-//           "magnesium",
-//           "manganese",
-//           "molybdenum",
-//           "phosphorus",
-//           "potassium",
-//           "selenium",
-//           "zinc",
-//         ],
-//       },
-//     },
-//     // uncategorized: {
-//     //   type: Type.ARRAY,
-//     //   description:
-//     //     // TODO: It might include the contents such as calories sodium etc
-//     //     "List the remaining nutritional information that are not covered",
-//     //   items: {
-//     //     type: Type.STRING,
-//     //   },
-//     // },
-//   },
-// };
+export const nutritionInfoCategorySchema: ResponseFormatTextConfig = {
+  type: "json_schema",
+  name: "nutrition_info_category",
+  schema: {
+    type: ["object", "null"],
+    properties: {
+      vitamins: {
+        type: ["array", "null"],
+        description: "Available vitamins in the nutrition label",
+        items: {
+          type: "string",
+          enum: [
+            "a",
+            "b1",
+            "b2",
+            "b3",
+            "b5",
+            "b6",
+            "b7",
+            "b9",
+            "b12",
+            "c",
+            "d",
+            "e",
+            "k",
+          ],
+        },
+      },
+      minerals: {
+        type: ["array", "null"],
+        description: "Available minerals in the nutrition label",
+        items: {
+          type: "string",
+          enum: [
+            "calcium",
+            "chloride",
+            "chromium",
+            "copper",
+            "fluoride",
+            "iodine",
+            "iron",
+            "magnesium",
+            "manganese",
+            "molybdenum",
+            "phosphorus",
+            "potassium",
+            "selenium",
+            "zinc",
+          ],
+        },
+      },
+    },
+    required: ["vitamins", "minerals"],
+    additionalProperties: false,
+  },
+  strict: true,
+};
 
 // export const ingredientsSchema: Schema = {
 //   description: "List of ingredients of the food product",

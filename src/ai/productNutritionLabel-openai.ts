@@ -6,13 +6,15 @@ import {
 } from "@/types/prompt";
 import {
   nutritionInfoAvailableSchema,
-  nutritionInfoCategorySchema,
   nutritionInfoServingsSchema,
 } from "./schema";
 import { generateData, generateDataOpenAI } from "../utils/ai";
 import sharp from "sharp";
 import { NUTRITION_FACT_KEYS } from "@/src/utils/evaluateNutritionQuartiles";
-import { nutritionInfoDetailsSchema } from "./schema-openai";
+import {
+  nutritionInfoDetailsSchema,
+  nutritionInfoCategorySchema,
+} from "./schema-openai";
 
 export const processNutritionLabelV2_OpenAI = async (
   nutritionLabelBuffer: Buffer<ArrayBufferLike>,
@@ -83,8 +85,8 @@ export const processNutritionLabelV2_OpenAI = async (
         nutritionInfoDetailsSchema,
         "high"
       ),
-      generateData<NutritionInfoCategory>(
-        liteModel,
+      generateDataOpenAI<NutritionInfoCategory>(
+        model,
         nutritionLabelBuffer,
         `List the vitamins and minerals listed on the nutritional label.`,
         nutritionInfoCategorySchema
