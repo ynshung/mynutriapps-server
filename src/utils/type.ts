@@ -16,8 +16,9 @@ export const toValidStringArrayOrNull = (value: string | string[] | undefined): 
     return value.trim() === "" ? null : [value];
   }
   if (Array.isArray(value)) {
-    const filteredArray = value.filter((str) => str.trim() !== "");
-    return filteredArray.length === 0 ? null : filteredArray;
+    const filteredArray = value.filter((str) => str.trim() !== "" && !str.includes("sodium"));
+    const uniqueArray = Array.from(new Set(filteredArray));
+    return uniqueArray.length === 0 ? null : uniqueArray;
   }
   return null;
 }
