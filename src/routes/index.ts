@@ -474,7 +474,8 @@ router.get("/api/v1/popular", optionalAuthMiddleware, async (req, res) => {
   const recentlyViewedProducts = await listPopularProductsWeighted({
     page: Number(page),
     limit: Number(limit),
-    userID
+    userID,
+    showAll: true,
   });
   res.status(200).json(recentlyViewedProducts);
 });
