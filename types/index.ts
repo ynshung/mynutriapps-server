@@ -87,5 +87,12 @@ export type ProductSearchResult = {
   brand: string | null;
 };
 
+export type Announcement = {
+  id: number;
+  title: string;
+  content: string;
+  createdAt: Date;
+}
+
 export type ProductSearchResultMS = (ProductSearchResult & SearchResult)[];
 export type ProductSuggestions = Suggestion[];

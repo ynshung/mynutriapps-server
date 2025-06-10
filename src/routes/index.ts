@@ -12,10 +12,7 @@ import {
   listPopularProductsWeighted,
   listSubmittedProducts,
 } from "./product";
-import {
-  getCategoryDetails,
-  listCategory,
-} from "./category";
+import { getCategoryDetails, listCategory } from "./category";
 import { Request, Response, NextFunction } from "express";
 import { upload } from "../middleware/upload";
 import "express-async-errors";
@@ -26,13 +23,14 @@ import {
 } from "../middleware/auth";
 import { db } from "../db";
 import {
+  announcementsTable,
   foodProductPublicView,
   imagesTable,
   userProductFavoritesTable,
   userReportTable,
   usersTable,
 } from "../db/schema";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { adminMiddleware } from "../middleware/admin";
 import cors from "cors";
 import { NewFoodProductFormData } from "@/types";
@@ -46,7 +44,10 @@ import { bufferToMulter, fetchImageAsMulter } from "../utils/fetchImage";
 import { uploadImage } from "../utils/image";
 import sharp from "sharp";
 import { adminInferenceProduct } from "./admin";
-import { findRelatedProductsCards, getHistoryRecommendation } from "../utils/recommendation";
+import {
+  findRelatedProductsCards,
+  getHistoryRecommendation,
+} from "../utils/recommendation";
 
 const router = Router();
 
@@ -56,6 +57,27 @@ router.get("/status", (req, res) => {
   res.status(200).json({
     status: "success",
   });
+});
+
+router.get("/api/v1/announcement", async (req, res) => {
+  const announcement = await db
+    .select({
+      id: announcementsTable.id,
+      title: announcementsTable.title,
+      content: announcementsTable.content,
+      createdAt: announcementsTable.createdAt,
+    })
+    .from(announcementsTable)
+    .where(eq(announcementsTable.hidden, false))
+    .orderBy(desc(announcementsTable.id))
+    .limit(1);
+  
+  if (announcement.length === 0) {
+    res.status(200).json({});
+    return;
+  } else {
+    res.status(200).json(announcement[0]);
+  }
 });
 
 // User Profile
@@ -223,7 +245,10 @@ router.get("/api/v1/category/:id", optionalAuthMiddleware, async (req, res) => {
       limit: Number(limit),
       userID,
       categoryId: Number(id),
-      userGoal: String(score_filter) === "true" ? userGoal ?? "improveHealth" : undefined, // todo: refactor this
+      userGoal:
+        String(score_filter) === "true"
+          ? userGoal ?? "improveHealth"
+          : undefined, // todo: refactor this
       showAll: true,
       userOnly: sort === "popular_user",
     });
@@ -246,21 +271,25 @@ router.get("/api/v1/category/:id", optionalAuthMiddleware, async (req, res) => {
 });
 
 // Food Products
-router.get("/api/v1/list", optionalAuthMiddleware, async (req: Request, res: Response) => {
-  const { userID, userGoal } = req;
-  const { page = 1, limit = 10, sort, score_filter } = req.query;
+router.get(
+  "/api/v1/list",
+  optionalAuthMiddleware,
+  async (req: Request, res: Response) => {
+    const { userID, userGoal } = req;
+    const { page = 1, limit = 10, sort, score_filter } = req.query;
 
-  const data = await listProducts({
-    userID: userID,
-    userGoal: userGoal,
-    page: Number(page),
-    limit: Number(limit),
-    sort: sort ? String(sort) : undefined,
-    scoreFilter: String(score_filter) === "true" ? true : false,
-  });
+    const data = await listProducts({
+      userID: userID,
+      userGoal: userGoal,
+      page: Number(page),
+      limit: Number(limit),
+      sort: sort ? String(sort) : undefined,
+      scoreFilter: String(score_filter) === "true" ? true : false,
+    });
 
-  res.json(data);
-});
+    res.json(data);
+  }
+);
 router.get("/api/v1/list-submitted", authMiddleware, listSubmittedProducts);
 router.get("/api/v1/product/:id", optionalAuthMiddleware, getProduct);
 router.get(
@@ -269,11 +298,7 @@ router.get(
   async (req, res) => {
     const { id } = req.params;
     const { userID, userGoal } = req;
-    const data = await findRelatedProductsCards(
-      Number(id),
-      userID,
-      userGoal,
-    );
+    const data = await findRelatedProductsCards(Number(id), userID, userGoal);
 
     if (!data) {
       res.status(200).json([]);
@@ -293,7 +318,10 @@ router.get("/api/v1/user/recommendation", authMiddleware, async (req, res) => {
     });
     return;
   }
-  const recommendations = await getHistoryRecommendation(userID, userGoal ?? "improveHealth");
+  const recommendations = await getHistoryRecommendation(
+    userID,
+    userGoal ?? "improveHealth"
+  );
   if (!recommendations) {
     res.status(200).json([]);
     return;
@@ -301,9 +329,9 @@ router.get("/api/v1/user/recommendation", authMiddleware, async (req, res) => {
 
   const data = await productsQuery({ userID })
     .where(
-        inArray(
-          foodProductPublicView.id,
-          recommendations.map((item) => item.id)
+      inArray(
+        foodProductPublicView.id,
+        recommendations.map((item) => item.id)
       )
     )
     .orderBy(
@@ -532,38 +560,34 @@ router.post(
 );
 
 // Report
-router.post(
-  "/api/v1/product/report",
-  authMiddleware,
-  async (req, res) => {
-    const { userID } = req;
-    const { productID, reportType, description } = req.body;
+router.post("/api/v1/product/report", authMiddleware, async (req, res) => {
+  const { userID } = req;
+  const { productID, reportType, description } = req.body;
 
-    if (!userID) {
-      res.status(403).json({
-        status: "error",
-        message: "Invalid account",
-      });
-      return;
-    }
-
-    if (!productID || !reportType) {
-      res.status(400).send("Product ID and report type are required");
-      return;
-    }
-
-    await db.insert(userReportTable).values({
-      userID: Number(userID),
-      foodProductId: Number(productID),
-      reportType: reportType,
-      reportDescription: description,
+  if (!userID) {
+    res.status(403).json({
+      status: "error",
+      message: "Invalid account",
     });
-    
-    res.status(200).json({
-      status: "success",
-    });
+    return;
   }
-);
+
+  if (!productID || !reportType) {
+    res.status(400).send("Product ID and report type are required");
+    return;
+  }
+
+  await db.insert(userReportTable).values({
+    userID: Number(userID),
+    foodProductId: Number(productID),
+    reportType: reportType,
+    reportDescription: description,
+  });
+
+  res.status(200).json({
+    status: "success",
+  });
+});
 
 // Admin
 router.use("/api/v1/admin", adminMiddleware);

@@ -296,3 +296,11 @@ export const userReportTable = pgTable("user_report", {
     }),
   closeTimestamp: timestamp(),
 });
+
+export const announcementsTable = pgTable("announcements", {
+  id: serial().primaryKey(),
+  title: text().notNull(),
+  content: text().notNull(),
+  createdAt: timestamp().notNull().defaultNow(),
+  hidden: boolean().notNull().default(true),
+});
