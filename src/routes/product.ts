@@ -18,7 +18,7 @@ import {
 import { ProductCardType } from "@/types";
 import { logger } from "@src/utils/logger";
 import { processFrontLabel } from "../ai/productFrontLabel";
-import { processNutritionLabelV2_OpenAI } from "../ai/productNutritionLabel-openai";
+import { processNutritionLabelV2 } from "../ai/productNutritionLabel";
 import { processIngredientsLabel } from "../ai/productIngredients";
 import {
   createNewProductNutrition,
@@ -424,7 +424,7 @@ export const createProduct = async (
     await Promise.all([
       processFrontLabel(images.frontLabel.buffer),
       images.nutritionLabel
-        ? processNutritionLabelV2_OpenAI(images.nutritionLabel.buffer)
+        ? processNutritionLabelV2(images.nutritionLabel.buffer)
         : Promise.resolve(undefined),
       images.ingredients
         ? processIngredientsLabel(images.ingredients.buffer)

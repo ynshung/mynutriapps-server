@@ -4,7 +4,7 @@ import { processIngredientsLabel } from "../ai/productIngredients";
 import { fetchImageAsBuffer } from "../utils/fetchImage";
 import { Response } from "express";
 import { logger } from "../utils/logger";
-import { processNutritionLabelV2_OpenAI } from "../ai/productNutritionLabel-openai";
+import { processNutritionLabelV2 } from "../ai/productNutritionLabel";
 
 interface AdminInferenceProductProps {
   frontLabel?: Express.Multer.File;
@@ -33,7 +33,7 @@ export const adminInferenceProduct = async ({
 }: AdminInferenceProductProps) => {
   const inferenceHandlers = {
     front_label: processFrontLabel,
-    nutrition_label: processNutritionLabelV2_OpenAI,
+    nutrition_label: processNutritionLabelV2,
     ingredients: processIngredientsLabel,
   };
   const tasks: Promise<InferenceResult>[] = [];
