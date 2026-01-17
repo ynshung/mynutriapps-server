@@ -1,4 +1,5 @@
 # MyNutriApps Server
+This is the server component of my final year project, MyNutriApps. Contact me if you would like to learn more!
 
 ## Environment Setup
 ```
